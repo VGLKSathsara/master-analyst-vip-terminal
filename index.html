@@ -24,15 +24,15 @@
         <div class="clock-section">
           <div class="clock-card">
             <span class="label">NEW YORK 🇺🇸</span>
-            <span id="time-ny" class="time-val">00:00</span>
+            <span id="time-ny" class="time-val">00:00:00</span>
           </div>
           <div class="clock-card">
             <span class="label">LONDON 🇬🇧</span>
-            <span id="time-london" class="time-val">00:00</span>
+            <span id="time-london" class="time-val">00:00:00</span>
           </div>
           <div class="clock-card">
             <span class="label">SRI LANKA 🇱🇰</span>
-            <span id="time-sl" class="time-val">00:00</span>
+            <span id="time-sl" class="time-val">00:00:00</span>
           </div>
         </div>
 
@@ -46,11 +46,16 @@
           </div>
           <div
             id="kz-message"
-            style="font-size: 10px; margin-top: 8px; color: #92400e"
+            style="font-size: 11px; margin-top: 8px; color: #92400e"
           ></div>
           <div
             id="kz-countdown"
-            style="font-size: 14px; font-weight: bold; margin-top: 8px"
+            style="
+              font-size: 13px;
+              font-weight: bold;
+              margin-top: 8px;
+              text-align: center;
+            "
           ></div>
         </div>
 
@@ -134,7 +139,13 @@
               type="text"
               id="note"
               placeholder="Additional signal notes..."
-              style="width: 100%; margin-top: 5px; padding: 10px"
+              style="
+                width: 100%;
+                margin-top: 5px;
+                padding: 10px;
+                border: 1px solid var(--border);
+                border-radius: 8px;
+              "
             />
           </div>
 

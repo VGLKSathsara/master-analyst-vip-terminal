@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCoinSuggestions()
   if (trades.length > 0) {
     updateStats()
+    renderHistory()
   }
 })
 
@@ -500,15 +501,13 @@ function updateClocks() {
   }
 }
 
-// ============ REAL-TIME KZ TRACKER ============
+// ============ REAL-TIME KZ TRACKER (IMPROVED) ============
 function initKZTracker() {
   if (kzInterval) clearInterval(kzInterval)
   kzInterval = setInterval(() => {
     updateKZTracker()
-    updateCountdown()
   }, 1000)
   updateKZTracker()
-  updateCountdown()
 }
 
 function updateKZTracker() {
@@ -516,83 +515,161 @@ function updateKZTracker() {
   const londonTime = new Date(
     now.toLocaleString('en-US', { timeZone: 'Europe/London' }),
   )
-  const hour = londonTime.getHours()
-  const minute = londonTime.getMinutes()
-  const currentTime = hour + minute / 60
+  let hour = londonTime.getHours()
+  let minute = londonTime.getMinutes()
+  let second = londonTime.getSeconds()
+  let currentTime = hour + minute / 60 + second / 3600
 
   let kzName = ''
   let percentage = 0
   let message = ''
   let color = '#f59e0b'
+  let isActive = false
 
-  // London Kill Zone (08:00-10:00 UTC)
-  if (currentTime >= 8 && currentTime < 10) {
-    kzName = '🇬🇧 LONDON KZ - ACTIVE 🔥'
-    const elapsed = currentTime - 8
-    percentage = Math.min(100, (elapsed / 2) * 100)
-    const remaining = (10 - currentTime) * 60
-    const remainingMinutes = Math.floor(remaining)
-    message = `🔥 LONDON SESSION ACTIVE! ${remainingMinutes} minutes remaining`
-    color = '#f97316'
-  }
-  // New York Kill Zone (13:00-15:00 UTC)
-  else if (currentTime >= 13 && currentTime < 15) {
-    kzName = '🇺🇸 NEW YORK KZ - ACTIVE 💪'
-    const elapsed = currentTime - 13
-    percentage = Math.min(100, (elapsed / 2) * 100)
-    const remaining = (15 - currentTime) * 60
-    const remainingMinutes = Math.floor(remaining)
-    message = `💪 NY SESSION ACTIVE! ${remainingMinutes} minutes remaining`
-    color = '#ef4444'
-  }
-  // Asia Kill Zone (20:00-22:00 UTC)
-  else if (currentTime >= 20 || currentTime < 2) {
-    kzName = '🇯🇵 ASIA KZ - ACTIVE 🌏'
-    let adjustedTime
-    if (currentTime >= 20) {
-      adjustedTime = currentTime - 20
-      percentage = Math.min(100, (adjustedTime / 2) * 100)
-      const remaining = (22 - currentTime) * 60
-      const remainingMinutes = Math.floor(remaining)
-      message = `🌏 ASIA SESSION ACTIVE! ${remainingMinutes} minutes remaining`
-    } else {
-      adjustedTime = currentTime + 4
-      percentage = Math.min(100, (adjustedTime / 2) * 100)
-      const remaining = (2 - currentTime) * 60
-      const remainingMinutes = Math.floor(remaining)
-      message = `🌏 ASIA SESSION ACTIVE! ${remainingMinutes} minutes remaining`
+  // Define sessions
+  const sessions = [
+    {
+      name: 'LONDON KZ',
+      start: 8,
+      end: 10,
+      icon: '🔥',
+      color: '#f97316',
+      desc: 'High volatility - London open',
+    },
+    {
+      name: 'LONDON-NY OVERLAP',
+      start: 12,
+      end: 13,
+      icon: '⚡',
+      color: '#dc2626',
+      desc: 'Maximum liquidity - Best trading time',
+    },
+    {
+      name: 'NEW YORK KZ',
+      start: 13,
+      end: 15,
+      icon: '💪',
+      color: '#ef4444',
+      desc: 'Major market moves - US session',
+    },
+    {
+      name: 'ASIA KZ',
+      start: 20,
+      end: 22,
+      icon: '🌏',
+      color: '#8b5cf6',
+      desc: 'Asian breakout opportunities',
+    },
+  ]
+
+  // Check active sessions
+  for (let session of sessions) {
+    if (currentTime >= session.start && currentTime < session.end) {
+      isActive = true
+      const elapsed = currentTime - session.start
+      const duration = session.end - session.start
+      percentage = (elapsed / duration) * 100
+      const remaining = (session.end - currentTime) * 60
+      kzName = `${session.icon} ${session.name} - ACTIVE ${session.icon}`
+      message = `${session.desc} • ${formatTimeRemaining(remaining)} remaining`
+      color = session.color
+      break
     }
+  }
+
+  // Handle Asia session crossing midnight
+  if (!isActive && (currentTime >= 20 || currentTime < 2)) {
+    isActive = true
+    let start = 20
+    let end = 22
+    let elapsed, remaining
+
+    if (currentTime >= 20) {
+      elapsed = currentTime - 20
+      remaining = (22 - currentTime) * 60
+    } else {
+      elapsed = currentTime + 4
+      remaining = (2 - currentTime) * 60
+    }
+
+    percentage = (elapsed / 2) * 100
+    kzName = `🌏 ASIA KZ - ACTIVE 🌏`
+    message = `Asian breakout opportunities • ${formatTimeRemaining(remaining)} remaining`
     color = '#8b5cf6'
   }
-  // London-NY Overlap (12:00-13:00 UTC)
-  else if (currentTime >= 12 && currentTime < 13) {
-    kzName = '⚡ LONDON-NY OVERLAP - MAX VOLATILITY 🚀'
-    const elapsed = currentTime - 12
-    percentage = 75 + elapsed * 25
-    const remaining = (13 - currentTime) * 60
-    const remainingMinutes = Math.floor(remaining)
-    message = `🚀 HIGHEST VOLATILITY! ${remainingMinutes} minutes remaining`
-    color = '#dc2626'
-  }
-  // Off-session
-  else {
-    kzName = '💤 OFF-SESSION'
-    percentage = 20
+
+  // Off-session - Show countdown percentage (increases as session approaches)
+  if (!isActive) {
+    let nextSession = null
+    let timeUntilNext = Infinity
+
+    for (let session of sessions) {
+      let startTime = session.start
+      let waitTime
+
+      if (currentTime < session.start) {
+        waitTime = session.start - currentTime
+      } else {
+        waitTime = 24 - currentTime + session.start
+      }
+
+      if (waitTime < timeUntilNext) {
+        timeUntilNext = waitTime
+        nextSession = session
+      }
+    }
+
+    // Special handling for Asia session
+    if (currentTime >= 22 && currentTime < 24) {
+      timeUntilNext = 24 - currentTime + 8
+      nextSession = { name: 'LONDON KZ', icon: '🔥', color: '#f97316' }
+    }
+
+    // Calculate countdown percentage (0% = far away, 100% = about to start)
+    const maxWaitTime = 24
+    percentage = Math.min(
+      100,
+      Math.max(0, ((maxWaitTime - timeUntilNext) / maxWaitTime) * 100),
+    )
+
+    // Format countdown display
+    const hours = Math.floor(timeUntilNext)
+    const minutes = Math.floor((timeUntilNext % 1) * 60)
+    const secs = Math.floor((((timeUntilNext % 1) * 60) % 1) * 60)
+
+    kzName = `⏰ COUNTDOWN TO ${nextSession.name}`
+    message = `${nextSession.icon} ${nextSession.name} starts in ${hours}h ${minutes}m ${secs}s`
     color = '#94a3b8'
 
-    if (currentTime < 8) {
-      message = `⏰ Next: London KZ in ${formatTimeRemaining((8 - currentTime) * 60)}`
-    } else if (currentTime < 12) {
-      message = `⏰ Next: Overlap in ${formatTimeRemaining((12 - currentTime) * 60)}`
-    } else if (currentTime < 13) {
-      message = `⏰ Next: NY KZ in ${formatTimeRemaining((13 - currentTime) * 60)}`
-    } else if (currentTime < 20) {
-      message = `⏰ Next: Asia KZ in ${formatTimeRemaining((20 - currentTime) * 60)}`
-    } else {
-      message = `⏰ Next: London KZ in ${formatTimeRemaining((24 - currentTime + 8) * 60)}`
+    // Update countdown display separately
+    const countdownEl = document.getElementById('kz-countdown')
+    if (countdownEl) {
+      countdownEl.innerHTML = `⏰ ${nextSession.name}: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      countdownEl.style.color = '#f59e0b'
+    }
+  } else {
+    // During active session, show remaining time in countdown
+    const countdownEl = document.getElementById('kz-countdown')
+    if (countdownEl) {
+      let sessionEnd = 0
+      if (kzName.includes('LONDON') && !kzName.includes('OVERLAP'))
+        sessionEnd = 10
+      else if (kzName.includes('OVERLAP')) sessionEnd = 13
+      else if (kzName.includes('NEW YORK')) sessionEnd = 15
+      else if (kzName.includes('ASIA')) sessionEnd = 22
+
+      if (sessionEnd > 0) {
+        const remaining = (sessionEnd - currentTime) * 3600
+        const hours = Math.floor(remaining / 3600)
+        const minutes = Math.floor((remaining % 3600) / 60)
+        const secs = Math.floor(remaining % 60)
+        countdownEl.innerHTML = `🔥 Session ends in: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        countdownEl.style.color = '#f97316'
+      }
     }
   }
 
+  // Update DOM
   const kzNameElement = document.getElementById('active-kz-name')
   const kzPercentElement = document.getElementById('kz-percent')
   const kzBarElement = document.getElementById('kz-bar')
@@ -608,67 +685,11 @@ function updateKZTracker() {
   if (kzMessageElement) kzMessageElement.innerHTML = message
 }
 
-function updateCountdown() {
-  const now = new Date()
-  const londonTime = new Date(
-    now.toLocaleString('en-US', { timeZone: 'Europe/London' }),
-  )
-  const hour = londonTime.getHours()
-  const minute = londonTime.getMinutes()
-  const second = londonTime.getSeconds()
-  const currentTime = hour + minute / 60 + second / 3600
-
-  let nextKZStart = null
-  let nextKZName = ''
-
-  if (currentTime < 8) {
-    nextKZStart = 8
-    nextKZName = 'London KZ'
-  } else if (currentTime < 12) {
-    nextKZStart = 12
-    nextKZName = 'London-NY Overlap'
-  } else if (currentTime < 13) {
-    nextKZStart = 13
-    nextKZName = 'New York KZ'
-  } else if (currentTime < 20) {
-    nextKZStart = 20
-    nextKZName = 'Asia KZ'
-  } else {
-    nextKZStart = 24 + 8
-    nextKZName = 'London KZ'
-  }
-
-  let remainingSeconds = (nextKZStart - currentTime) * 3600
-  if (remainingSeconds < 0) remainingSeconds += 24 * 3600
-
-  const hours = Math.floor(remainingSeconds / 3600)
-  const minutes = Math.floor((remainingSeconds % 3600) / 60)
-  const seconds = Math.floor(remainingSeconds % 60)
-
-  const countdownElement = document.getElementById('kz-countdown')
-  if (countdownElement) {
-    const isActive =
-      (currentTime >= 8 && currentTime < 10) ||
-      (currentTime >= 13 && currentTime < 15) ||
-      currentTime >= 20 ||
-      currentTime < 2 ||
-      (currentTime >= 12 && currentTime < 13)
-
-    if (isActive) {
-      countdownElement.innerHTML = `🔥 ${nextKZName.toUpperCase()} ACTIVE NOW! 🔥`
-      countdownElement.style.color = '#f97316'
-      countdownElement.style.fontSize = '14px'
-    } else {
-      countdownElement.innerHTML = `⏰ ${nextKZName} starts in: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-      countdownElement.style.color = '#94a3b8'
-    }
-  }
-}
-
 function formatTimeRemaining(minutes) {
   if (minutes <= 0) return 'starting now'
   const hours = Math.floor(minutes / 60)
   const mins = Math.floor(minutes % 60)
+
   if (hours > 0) {
     return `${hours}h ${mins}m`
   }
