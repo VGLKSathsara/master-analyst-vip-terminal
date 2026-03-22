@@ -115,28 +115,28 @@
           </div>
 
           <div class="quick-coins" id="quick-coins">
-            <button class="coin-pill" onclick="setQuickCoin('BTC/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('BTC/USDT.P')">
               BTC
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('ETH/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('ETH/USDT.P')">
               ETH
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('SOL/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('SOL/USDT.P')">
               SOL
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('XRP/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('XRP/USDT.P')">
               XRP
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('BNB/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('BNB/USDT.P')">
               BNB
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('ADA/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('ADA/USDT.P')">
               ADA
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('DOGE/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('DOGE/USDT.P')">
               DOGE
             </button>
-            <button class="coin-pill" onclick="setQuickCoin('AVAX/USDT')">
+            <button class="coin-pill" onclick="setQuickCoin('AVAX/USDT.P')">
               AVAX
             </button>
           </div>
@@ -147,42 +147,110 @@
               <input
                 type="text"
                 id="coin"
-                placeholder="e.g. BTC/USDT"
+                placeholder="e.g. DOGE/USDT.P"
                 list="coin-suggestions"
                 autocomplete="off"
               />
               <datalist id="coin-suggestions"></datalist>
             </div>
             <div class="input-group">
-              <label>Direction</label>
-              <select id="side">
-                <option value="LONG 📈">LONG 📈</option>
-                <option value="SHORT 📉">SHORT 📉</option>
+              <label>Order Type</label>
+              <select id="order-type">
+                <option value="Limit Order">⌛ Limit Order</option>
+                <option value="Market Order">⚡ Market Order</option>
               </select>
             </div>
 
             <div class="input-group">
+              <label>Direction</label>
+              <select id="side">
+                <option value="Buy/Long">Buy/Long ⬆️</option>
+                <option value="Sell/Short">Sell/Short ⬇️</option>
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Leverage</label>
+              <input type="text" id="leverage" placeholder="e.g. 10x or Max" />
+            </div>
+            <div class="input-group">
               <label>Entry Price</label>
-              <input type="number" id="entry" placeholder="0.00" step="any" />
+              <input
+                type="number"
+                id="entry"
+                placeholder="0.00000"
+                step="any"
+                oninput="calcRisk()"
+              />
+            </div>
+
+            <div class="input-group">
+              <label>Stop Loss 🔻</label>
+              <input
+                type="number"
+                id="sl"
+                placeholder="0.00000"
+                step="any"
+                oninput="calcRisk()"
+              />
             </div>
             <div class="input-group">
-              <label>Take Profit</label>
-              <input type="number" id="tp" placeholder="0.00" step="any" />
-            </div>
-            <div class="input-group">
-              <label>Stop Loss</label>
-              <input type="number" id="sl" placeholder="0.00" step="any" />
+              <label
+                >Risk % <span class="optional-tag">from balance</span></label
+              >
+              <input
+                type="number"
+                id="risk-pct"
+                placeholder="e.g. 1"
+                step="any"
+                value="1"
+              />
             </div>
             <div class="input-group">
               <label
                 >Break Even <span class="optional-tag">optional</span></label
               >
-              <input type="number" id="be" placeholder="0.00" step="any" />
+              <input type="number" id="be" placeholder="0.00000" step="any" />
             </div>
-            <div class="input-group">
-              <label>Leverage <span class="optional-tag">optional</span></label>
-              <input type="text" id="leverage" placeholder="e.g. 10x" />
+          </div>
+
+          <!-- Multi TP Section -->
+          <div class="tp-section">
+            <div class="tp-section-header">
+              <label>🟢 Take Profit Targets</label>
+              <button class="btn-add-tp" onclick="addTP()">+ Add TP</button>
             </div>
+            <div id="tp-inputs" class="tp-inputs">
+              <div class="tp-row" id="tp-row-1">
+                <span class="tp-label">TP 1</span>
+                <input
+                  type="number"
+                  id="tp1"
+                  placeholder="0.00000"
+                  step="any"
+                  oninput="calcRisk()"
+                />
+                <button
+                  class="tp-remove"
+                  onclick="removeTP(1)"
+                  style="display: none"
+                >
+                  ✕
+                </button>
+              </div>
+              <div class="tp-row" id="tp-row-2">
+                <span class="tp-label">TP 2</span>
+                <input
+                  type="number"
+                  id="tp2"
+                  placeholder="0.00000"
+                  step="any"
+                />
+                <button class="tp-remove" onclick="removeTP(2)">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-grid" style="margin-top: 14px">
             <div class="input-group span-3">
               <label>Note <span class="optional-tag">optional</span></label>
               <input
@@ -324,4 +392,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-//

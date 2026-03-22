@@ -497,6 +497,90 @@ select {
   cursor: pointer;
 }
 
+/* TP Section */
+.tp-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.tp-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tp-section-header label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.btn-add-tp {
+  padding: 5px 12px;
+  border: 1px dashed var(--win);
+  border-radius: 6px;
+  background: var(--win-bg);
+  color: var(--win);
+  font-family: var(--font-main);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.btn-add-tp:hover {
+  background: rgba(34, 211, 160, 0.18);
+}
+
+.tp-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeUp 0.2s ease;
+}
+
+.tp-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--win);
+  min-width: 36px;
+}
+
+.tp-row input {
+  flex: 1;
+  margin: 0;
+}
+
+.tp-remove {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+  font-family: var(--font-main);
+}
+
+.tp-remove:hover {
+  border-color: var(--loss);
+  color: var(--loss);
+}
+
 /* Risk Preview */
 .risk-preview {
   display: flex;
@@ -1015,7 +1099,7 @@ textarea {
   background: var(--border-hover);
 }
 
-/* ============ RESPONSIVE =========== */
+/* ============ RESPONSIVE ============ */
 @media (max-width: 900px) {
   :root {
     --sidebar-w: 260px;

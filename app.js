@@ -4,27 +4,82 @@ let chart = null
 let kzInterval = null
 
 const COINS = [
+  'BTC/USDT.P',
+  'ETH/USDT.P',
+  'BNB/USDT.P',
+  'SOL/USDT.P',
+  'XRP/USDT.P',
+  'ADA/USDT.P',
+  'DOGE/USDT.P',
+  'DOT/USDT.P',
+  'MATIC/USDT.P',
+  'LINK/USDT.P',
+  'AVAX/USDT.P',
+  'UNI/USDT.P',
+  'ATOM/USDT.P',
+  'LTC/USDT.P',
+  'ETC/USDT.P',
+  'TRX/USDT.P',
+  'NEAR/USDT.P',
+  'APT/USDT.P',
+  'ARB/USDT.P',
+  'OP/USDT.P',
   'BTC/USDT',
   'ETH/USDT',
   'BNB/USDT',
   'SOL/USDT',
   'XRP/USDT',
-  'ADA/USDT',
   'DOGE/USDT',
-  'DOT/USDT',
-  'MATIC/USDT',
-  'LINK/USDT',
-  'AVAX/USDT',
-  'UNI/USDT',
-  'ATOM/USDT',
-  'LTC/USDT',
-  'ETC/USDT',
-  'TRX/USDT',
-  'NEAR/USDT',
-  'APT/USDT',
-  'ARB/USDT',
-  'OP/USDT',
 ]
+
+let tpCount = 2
+
+// ============ MULTI-TP MANAGEMENT ============
+function addTP() {
+  if (tpCount >= 6) return toast('Maximum 6 TPs allowed', 'info')
+  tpCount++
+  const container = document.getElementById('tp-inputs')
+  const row = document.createElement('div')
+  row.className = 'tp-row'
+  row.id = `tp-row-${tpCount}`
+  row.innerHTML = `
+    <span class="tp-label">TP ${tpCount}</span>
+    <input type="number" id="tp${tpCount}" placeholder="0.00000" step="any" />
+    <button class="tp-remove" onclick="removeTP(${tpCount})">✕</button>
+  `
+  container.appendChild(row)
+}
+
+function removeTP(n) {
+  if (n === 1) return
+  const row = document.getElementById(`tp-row-${n}`)
+  if (row) row.remove()
+  // Renumber remaining rows
+  const rows = document.querySelectorAll('.tp-row')
+  tpCount = 0
+  rows.forEach((row, i) => {
+    tpCount = i + 1
+    row.id = `tp-row-${tpCount}`
+    row.querySelector('.tp-label').textContent = `TP ${tpCount}`
+    const inp = row.querySelector('input')
+    inp.id = `tp${tpCount}`
+    const btn = row.querySelector('.tp-remove')
+    if (btn) {
+      btn.onclick = tpCount === 1 ? null : () => removeTP(tpCount)
+      btn.style.display = tpCount === 1 ? 'none' : ''
+    }
+  })
+}
+
+function getTPValues() {
+  const tps = []
+  const rows = document.querySelectorAll('.tp-row')
+  rows.forEach((_, i) => {
+    const val = parseFloat(document.getElementById(`tp${i + 1}`)?.value)
+    if (!isNaN(val) && val > 0) tps.push(val)
+  })
+  return tps
+}
 
 // ============ INIT ============
 document.addEventListener('DOMContentLoaded', () => {
@@ -77,15 +132,17 @@ function setQuickCoin(coin) {
 
 // ============ RISK CALCULATOR ============
 function setupRiskPreview() {
-  ;['entry', 'tp', 'sl', 'side'].forEach((id) => {
+  ;['entry', 'sl', 'side'].forEach((id) => {
     const el = document.getElementById(id)
     if (el) el.addEventListener('input', calcRisk)
   })
+  // tp1 is dynamic, use event delegation
+  document.getElementById('tp-inputs')?.addEventListener('input', calcRisk)
 }
 
 function calcRisk() {
   const entry = parseFloat(document.getElementById('entry').value)
-  const tp = parseFloat(document.getElementById('tp').value)
+  const tp = parseFloat(document.getElementById('tp1')?.value)
   const sl = parseFloat(document.getElementById('sl').value)
   const side = document.getElementById('side').value
 
@@ -97,8 +154,9 @@ function calcRisk() {
     return
   }
 
+  const isShort = side.includes('Short') || side.includes('Sell')
   let profitPct, lossPct
-  if (side.includes('LONG')) {
+  if (!isShort) {
     profitPct = ((tp - entry) / entry) * 100
     lossPct = ((entry - sl) / entry) * 100
   } else {
@@ -107,11 +165,11 @@ function calcRisk() {
   }
 
   const rr = lossPct > 0 ? (profitPct / lossPct).toFixed(2) : '∞'
-
   document.getElementById('rr-ratio').textContent = `1:${rr}`
   document.getElementById('profit-pct').textContent =
     `+${profitPct.toFixed(2)}%`
-  document.getElementById('loss-pct').textContent = `-${lossPct.toFixed(2)}%`
+  document.getElementById('loss-pct').textContent =
+    `-${Math.abs(lossPct).toFixed(2)}%`
   preview.style.display = 'flex'
 }
 
@@ -119,30 +177,72 @@ function calcRisk() {
 function executeSignal() {
   const coin = document.getElementById('coin').value.trim()
   const side = document.getElementById('side').value
+  const orderType = document.getElementById('order-type').value
   const entry = parseFloat(document.getElementById('entry').value)
-  const tp = parseFloat(document.getElementById('tp').value)
   const be = document.getElementById('be').value
   const sl = parseFloat(document.getElementById('sl').value)
   const note = document.getElementById('note').value
-  const leverage = document.getElementById('leverage').value
+  const leverage = document.getElementById('leverage').value || '10x or Max'
+  const riskPct = document.getElementById('risk-pct').value || '1'
+  const tps = getTPValues()
 
   if (!coin) return toast('❌ Asset name required', 'error')
   if (isNaN(entry) || entry <= 0)
     return toast('❌ Valid entry price required', 'error')
   if (isNaN(sl) || sl <= 0) return toast('❌ Valid stop loss required', 'error')
-  if (isNaN(tp) || tp <= 0)
-    return toast('❌ Valid take profit required', 'error')
+  if (tps.length === 0) return toast('❌ At least one TP required', 'error')
+
+  // Format coin symbol for header — e.g. #DOGEUSDT.P
+  const coinTag = '#' + coin.replace('/', '').toUpperCase()
+
+  // Direction emoji
+  const isShort = side.includes('Short') || side.includes('Sell')
+  const dirArrow = isShort ? '⬇️' : '⬆️'
+  const dirLine = `${side} ${dirArrow}`
+
+  // TP lines — aligned
+  const tpEmojis = ['🎯', '🎯', '🎯', '🎯', '🎯', '🎯']
+  const tpLines = tps
+    .map((tp, i) => `${tpEmojis[i]} TP ${i + 1}     :  ${tp}`)
+    .join('\n')
+
+  // Build message
+  const beLine = be ? `│ 🔵 Break Even : ${be}\n` : ''
+  const noteLine = note ? `│ 📌 ${note}\n` : ''
+  const isLong = !isShort
+
+  const message =
+    `🀄 #${coinTag} — ${isLong ? 'LONG 🟢' : 'SHORT 🔴'}\n` +
+    `${'─'.repeat(28)}\n` +
+    `📋 ${orderType.toUpperCase()}  |  🔒 Lv. ${leverage}\n` +
+    `${'─'.repeat(28)}\n` +
+    `\n` +
+    `📍 Entry    :  ${entry}\n` +
+    `${tpLines}\n` +
+    `🛑 SL       :  ${sl}\n` +
+    (be ? `🔵 BE       :  ${be}\n` : '') +
+    `\n` +
+    `${'─'.repeat(28)}\n` +
+    `💰 Risk: ${riskPct}% of account balance\n` +
+    `${'─'.repeat(28)}\n` +
+    (note ? `📌 ${note}\n\n` : '') +
+    `🪷 Be patient  |  🌸 Discipline\n` +
+    `🙌 Risk management  |  🔰 Powered by\n` +
+    `💸 Master Analysts VIP (crypto) 🔐`
 
   const trade = {
     id: Date.now(),
     date: new Date().toISOString(),
     coin: coin.toUpperCase(),
     side,
+    orderType,
     entry,
-    tp,
+    tps,
+    tp: tps[0], // keep first TP for history/stats compatibility
     be: be || 'None',
     sl,
-    leverage: leverage || 'None',
+    leverage,
+    riskPct,
     note,
     status: 'OPEN',
     exitPrice: null,
@@ -153,23 +253,6 @@ function executeSignal() {
   trades.unshift(trade)
   saveTrades()
 
-  // Telegram message
-  const leverageLine = leverage ? `🔹 Leverage: ${leverage}\n` : ''
-  const beLine = be ? `🔹 BE: ${be}\n` : ''
-  const noteLine = note ? `📝 Note: ${note}\n` : ''
-  const message =
-    `✅ NEW SIGNAL: ${trade.coin}\n` +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `🔹 Side: ${trade.side}\n` +
-    `🔹 Entry: ${trade.entry}\n` +
-    `🔹 TP: ${trade.tp}\n` +
-    `🔹 SL: ${trade.sl}\n` +
-    beLine +
-    leverageLine +
-    noteLine +
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `🚀 Master Analyst VIP - Trade with Confidence!`
-
   const output = document.getElementById('output')
   const outputArea = document.getElementById('output-area')
   output.value = message
@@ -177,17 +260,27 @@ function executeSignal() {
   outputArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 
   // Clear form
-  ;['entry', 'tp', 'sl', 'be', 'note', 'leverage'].forEach((id) => {
+  ;['entry', 'sl', 'be', 'note'].forEach((id) => {
     const el = document.getElementById(id)
     if (el) el.value = ''
   })
-  document.getElementById('risk-preview').style.display = 'none'
+  // Clear TPs except first row
+  document.querySelectorAll('.tp-row').forEach((row, i) => {
+    if (i === 0) {
+      const inp = row.querySelector('input')
+      if (inp) inp.value = ''
+    } else {
+      row.remove()
+    }
+  })
+  tpCount = 1
   document
     .querySelectorAll('.coin-pill')
     .forEach((p) => p.classList.remove('active'))
+  document.getElementById('risk-preview').style.display = 'none'
 
   updateStats()
-  toast('✅ Signal saved successfully!', 'success')
+  toast('✅ Signal saved!', 'success')
 }
 
 function copyOutput() {
@@ -325,7 +418,7 @@ function renderHistory() {
         </div>
         <div class="trade-prices">
           <div class="price-item"><span class="price-label">Entry</span><span class="price-val">${trade.entry}</span></div>
-          <div class="price-item"><span class="price-label">TP</span><span class="price-val">${trade.tp}</span></div>
+          <div class="price-item"><span class="price-label">TPs</span><span class="price-val">${(trade.tps || [trade.tp]).join(' · ')}</span></div>
           <div class="price-item"><span class="price-label">SL</span><span class="price-val">${trade.sl}</span></div>
           <div class="price-item"><span class="price-label">BE</span><span class="price-val">${trade.be}</span></div>
         </div>
@@ -753,4 +846,3 @@ function fmtCountdown(secs) {
     return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
   return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
 }
-//
