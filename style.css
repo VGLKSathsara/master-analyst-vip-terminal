@@ -1015,7 +1015,7 @@ textarea {
   background: var(--border-hover);
 }
 
-/* ============ RESPONSIVE ============ */
+/* ============ RESPONSIVE =========== */
 @media (max-width: 900px) {
   :root {
     --sidebar-w: 260px;
