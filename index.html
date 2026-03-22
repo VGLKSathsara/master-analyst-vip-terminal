@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Master Analyst VIP | Pro Terminal</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="top-ticker">
+      <div id="binance-ticker" class="ticker-content">
+        🔄 Loading market data...
+      </div>
+    </div>
+
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="brand">MASTER ANALYST <span>VIP</span></div>
+
+        <div class="clock-section">
+          <div class="clock-card">
+            <span class="label">NEW YORK 🇺🇸</span>
+            <span id="time-ny" class="time-val">00:00</span>
+          </div>
+          <div class="clock-card">
+            <span class="label">LONDON 🇬🇧</span>
+            <span id="time-london" class="time-val">00:00</span>
+          </div>
+          <div class="clock-card">
+            <span class="label">SRI LANKA 🇱🇰</span>
+            <span id="time-sl" class="time-val">00:00</span>
+          </div>
+        </div>
+
+        <div class="kz-tracker">
+          <div class="kz-header">
+            <span id="active-kz-name">🌍 Active Kill Zone</span>
+            <span id="kz-percent">0%</span>
+          </div>
+          <div class="progress-bg">
+            <div id="kz-bar" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <div
+            id="kz-message"
+            style="font-size: 10px; margin-top: 8px; color: #92400e"
+          ></div>
+        </div>
+
+        <nav class="side-nav">
+          <button
+            onclick="showSection('generator')"
+            class="nav-item active"
+            id="nav-generator"
+          >
+            📊 Signal Generator
+          </button>
+          <button
+            onclick="showSection('history')"
+            class="nav-item"
+            id="nav-history"
+          >
+            📜 Trade History
+          </button>
+          <button
+            onclick="showSection('stats')"
+            class="nav-item"
+            id="nav-stats"
+          >
+            📈 Performance Stats
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main-content">
+        <section id="generator" class="app-section glass-card">
+          <div class="section-header">
+            <h2>Create New Signal</h2>
+            <div class="search-container">
+              <input
+                type="text"
+                id="search-coin"
+                placeholder="Search Coins..."
+                oninput="filterQuickSearch()"
+              />
+            </div>
+          </div>
+
+          <div class="input-grid">
+            <input
+              type="text"
+              id="coin"
+              placeholder="ASSET (e.g. BTC/USDT)"
+              list="coin-suggestions"
+            />
+            <datalist id="coin-suggestions"></datalist>
+            <select id="side">
+              <option value="LONG 📈">LONG 📈</option>
+              <option value="SHORT 📉">SHORT 📉</option>
+            </select>
+            <input
+              type="number"
+              id="entry"
+              placeholder="Entry Price"
+              step="any"
+            />
+            <input
+              type="number"
+              id="tp"
+              placeholder="Target Profit"
+              step="any"
+            />
+            <input
+              type="number"
+              id="be"
+              placeholder="Break Even (BE)"
+              step="any"
+            />
+            <input type="number" id="sl" placeholder="Stop Loss" step="any" />
+          </div>
+
+          <div style="margin-bottom: 15px">
+            <label style="font-size: 12px; color: var(--dim)"
+              >📝 Optional Note:</label
+            >
+            <input
+              type="text"
+              id="note"
+              placeholder="Additional signal notes..."
+              style="width: 100%; margin-top: 5px"
+            />
+          </div>
+
+          <button class="btn-primary" onclick="executeSignal()">
+            🚀 GENERATE & SAVE SIGNAL
+          </button>
+          <textarea
+            id="output"
+            readonly
+            placeholder="Output for Telegram..."
+          ></textarea>
+          <button class="btn-copy" onclick="copyOutput()">
+            📋 COPY TO TELEGRAM
+          </button>
+        </section>
+
+        <section
+          id="history"
+          class="app-section glass-card"
+          style="display: none"
+        >
+          <div class="section-header">
+            <h2>Trade History</h2>
+            <div class="history-actions">
+              <button class="mini-btn" onclick="exportAllData()">
+                💾 EXPORT ALL
+              </button>
+              <button class="mini-btn" onclick="importAdminData()">
+                📥 IMPORT DATA
+              </button>
+              <button class="mini-btn green" onclick="downloadCSV()">
+                📊 EXCEL REPORT
+              </button>
+            </div>
+          </div>
+          <div id="trade-log" class="trade-log"></div>
+        </section>
+
+        <section
+          id="stats"
+          class="app-section glass-card"
+          style="display: none"
+        >
+          <h2>Analytics Dashboard</h2>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <span class="label">TOTAL SIGNALS</span>
+              <span id="stat-total" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">CLOSED TRADES</span>
+              <span id="stat-closed" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">WIN RATE</span>
+              <span id="stat-winrate" class="stat-value" style="color: #10b981"
+                >0%</span
+              >
+            </div>
+            <div class="stat-box">
+              <span class="label">PROFIT FACTOR</span>
+              <span id="stat-profit-factor" class="stat-value">0</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 30px">
+            <h3>📊 Monthly Performance</h3>
+            <canvas
+              id="monthly-chart"
+              style="max-height: 300px; width: 100%"
+            ></canvas>
+          </div>
+
+          <div class="danger-zone">
+            <button class="danger-link" onclick="clearAllData()">
+              ⚠️ Wipe Local Database
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
