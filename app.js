@@ -1,16 +1,19 @@
 // ============ DATA MANAGEMENT ============
 let trades = JSON.parse(localStorage.getItem('ma_trades')) || []
 let chart = null
+let kzInterval = null
 
 // ============ INITIALIZATION ============
 document.addEventListener('DOMContentLoaded', () => {
   updateClocks()
   setInterval(updateClocks, 1000)
-  setInterval(updateKZTracker, 1000)
-  setInterval(fetchMarketData, 30000)
+  initKZTracker()
   fetchMarketData()
-  updateKZTracker()
+  setInterval(fetchMarketData, 30000)
   loadCoinSuggestions()
+  if (trades.length > 0) {
+    updateStats()
+  }
 })
 
 // ============ NAVIGATION ============
@@ -85,6 +88,7 @@ function executeSignal() {
   document.getElementById('note').value = ''
 
   alert('✅ Signal saved successfully!')
+  updateStats()
 }
 
 function copyOutput() {
@@ -100,11 +104,14 @@ function updateTradeStatus(id, status, exitPrice = null) {
     trade.status = status
     trade.exitDate = new Date().toISOString()
 
-    if (exitPrice && !isNaN(exitPrice)) {
+    if (exitPrice && !isNaN(parseFloat(exitPrice))) {
       trade.exitPrice = parseFloat(exitPrice)
-      trade.profit = trade.side.includes('LONG')
-        ? ((trade.exitPrice - trade.entry) / trade.entry) * 100
-        : ((trade.entry - trade.exitPrice) / trade.entry) * 100
+      if (trade.side.includes('LONG')) {
+        trade.profit = ((trade.exitPrice - trade.entry) / trade.entry) * 100
+      } else {
+        trade.profit = ((trade.entry - trade.exitPrice) / trade.entry) * 100
+      }
+      trade.profit = parseFloat(trade.profit.toFixed(2))
     }
 
     localStorage.setItem('ma_trades', JSON.stringify(trades))
@@ -140,7 +147,7 @@ function renderHistory() {
     .map(
       (trade) => `
         <div class="trade-item" style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                 <div>
                     <strong style="font-size: 16px;">${trade.coin}</strong>
                     <span style="margin-left: 10px; padding: 2px 8px; background: ${trade.side.includes('LONG') ? '#10b98120' : '#ef444420'}; border-radius: 6px; font-size: 12px;">${trade.side}</span>
@@ -148,7 +155,7 @@ function renderHistory() {
                 </div>
                 <small style="color: var(--dim);">${new Date(trade.date).toLocaleString()}</small>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 13px; margin-bottom: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; font-size: 13px; margin-bottom: 10px;">
                 <div>📊 Entry: ${trade.entry}</div>
                 <div>🎯 TP: ${trade.tp}</div>
                 <div>🛑 SL: ${trade.sl}</div>
@@ -158,15 +165,15 @@ function renderHistory() {
             ${
               trade.status === 'OPEN'
                 ? `
-                <div style="display: flex; gap: 10px; margin-top: 10px;">
-                    <button onclick="updateTradeStatus(${trade.id}, 'WIN', prompt('Exit price:', '${trade.tp}'))" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✅ WIN</button>
-                    <button onclick="updateTradeStatus(${trade.id}, 'LOSS', prompt('Exit price:', '${trade.sl}'))" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">❌ LOSS</button>
+                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <button onclick="updateTradeStatus(${trade.id}, 'WIN', prompt('Enter exit price (for P&L calculation):', '${trade.tp}'))" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✅ WIN</button>
+                    <button onclick="updateTradeStatus(${trade.id}, 'LOSS', prompt('Enter exit price (for P&L calculation):', '${trade.sl}'))" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">❌ LOSS</button>
                     <button onclick="deleteTrade(${trade.id})" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">🗑️ DELETE</button>
                 </div>
             `
                 : `
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px;">
-                    ${trade.profit ? `📈 P&L: ${trade.profit.toFixed(2)}%` : ''}
+                    ${trade.profit !== null ? `<span style="color: ${trade.profit >= 0 ? '#10b981' : '#ef4444'}">📈 P&L: ${trade.profit >= 0 ? '+' : ''}${trade.profit}%</span>` : ''}
                     ${trade.exitPrice ? ` | Exit: ${trade.exitPrice}` : ''}
                     <small style="color: var(--dim);"> | Closed: ${new Date(trade.exitDate).toLocaleString()}</small>
                 </div>
@@ -228,9 +235,11 @@ function updateMonthlyChart() {
         month: 'short',
         year: 'numeric',
       })
-      if (!monthlyData[month]) monthlyData[month] = { wins: 0, losses: 0 }
+      if (!monthlyData[month])
+        monthlyData[month] = { wins: 0, losses: 0, profit: 0 }
       if (trade.status === 'WIN') monthlyData[month].wins++
       if (trade.status === 'LOSS') monthlyData[month].losses++
+      if (trade.profit) monthlyData[month].profit += trade.profit
     })
 
   const months = Object.keys(monthlyData)
@@ -244,14 +253,27 @@ function updateMonthlyChart() {
     data: {
       labels: months,
       datasets: [
-        { label: 'Wins', data: winData, backgroundColor: '#10b981' },
-        { label: 'Losses', data: lossData, backgroundColor: '#ef4444' },
+        {
+          label: 'Wins',
+          data: winData,
+          backgroundColor: '#10b981',
+          borderRadius: 8,
+        },
+        {
+          label: 'Losses',
+          data: lossData,
+          backgroundColor: '#ef4444',
+          borderRadius: 8,
+        },
       ],
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      plugins: { legend: { position: 'top' } },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: { mode: 'index', intersect: false },
+      },
     },
   })
 }
@@ -323,7 +345,7 @@ function downloadCSV() {
     t.be,
     t.status,
     t.exitPrice || '',
-    t.profit ? t.profit.toFixed(2) : '',
+    t.profit !== null ? t.profit : '',
     t.note || '',
   ])
 
@@ -345,13 +367,14 @@ function clearAllData() {
   if (
     confirm('⚠️ ARE YOU SURE? This will delete ALL trade history permanently!')
   ) {
-    if (confirm('Type "DELETE" to confirm:') === 'DELETE') {
+    const confirmation = prompt('Type "DELETE" to confirm:')
+    if (confirmation === 'DELETE') {
       trades = []
       localStorage.clear()
       alert('🗑️ Database wiped successfully.')
       location.reload()
     } else {
-      alert('Cancelled')
+      alert('Cancelled - Database not wiped')
     }
   }
 }
@@ -373,12 +396,16 @@ async function fetchMarketData() {
       })
       .join(' | ')
 
-    document.getElementById('binance-ticker').innerHTML =
-      `🔥 LIVE MARKET: ${tickerText}`
+    const tickerElement = document.getElementById('binance-ticker')
+    if (tickerElement) {
+      tickerElement.innerHTML = `🔥 LIVE MARKET: ${tickerText}`
+    }
   } catch (error) {
     console.error('Market data error:', error)
-    document.getElementById('binance-ticker').innerHTML =
-      '⚠️ Market data unavailable - check connection'
+    const tickerElement = document.getElementById('binance-ticker')
+    if (tickerElement) {
+      tickerElement.innerHTML = '⚠️ Market data unavailable - check connection'
+    }
   }
 }
 
@@ -394,104 +421,256 @@ function loadCoinSuggestions() {
     'DOT/USDT',
     'MATIC/USDT',
     'LINK/USDT',
+    'AVAX/USDT',
+    'UNI/USDT',
+    'ATOM/USDT',
+    'LTC/USDT',
+    'ETC/USDT',
   ]
   const datalist = document.getElementById('coin-suggestions')
-  datalist.innerHTML = coins.map((c) => `<option value="${c}">`).join('')
+  if (datalist) {
+    datalist.innerHTML = coins.map((c) => `<option value="${c}">`).join('')
+  }
 }
 
 function filterQuickSearch() {
   const searchTerm = document.getElementById('search-coin').value.toLowerCase()
   const suggestions = document.getElementById('coin-suggestions')
-  const allOptions = Array.from(suggestions.options)
+  if (!suggestions) return
 
-  suggestions.innerHTML = allOptions
-    .filter((opt) => opt.value.toLowerCase().includes(searchTerm))
-    .map((opt) => `<option value="${opt.value}">`)
-    .join('')
+  const allOptions = Array.from(suggestions.options)
+  const coins = [
+    'BTC/USDT',
+    'ETH/USDT',
+    'BNB/USDT',
+    'SOL/USDT',
+    'XRP/USDT',
+    'ADA/USDT',
+    'DOGE/USDT',
+    'DOT/USDT',
+    'MATIC/USDT',
+    'LINK/USDT',
+    'AVAX/USDT',
+    'UNI/USDT',
+    'ATOM/USDT',
+    'LTC/USDT',
+    'ETC/USDT',
+  ]
+
+  const filtered = coins.filter((c) => c.toLowerCase().includes(searchTerm))
+  suggestions.innerHTML = filtered.map((c) => `<option value="${c}">`).join('')
 }
 
 // ============ CLOCKS ============
 function updateClocks() {
   const now = new Date()
 
-  document.getElementById('time-ny').innerText = new Intl.DateTimeFormat(
-    'en-US',
-    {
+  const nyTime = document.getElementById('time-ny')
+  const londonTime = document.getElementById('time-london')
+  const slTime = document.getElementById('time-sl')
+
+  if (nyTime) {
+    nyTime.innerText = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/New_York',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: false,
-    },
-  ).format(now)
+    }).format(now)
+  }
 
-  document.getElementById('time-london').innerText = new Intl.DateTimeFormat(
-    'en-US',
-    {
+  if (londonTime) {
+    londonTime.innerText = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Europe/London',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: false,
-    },
-  ).format(now)
+    }).format(now)
+  }
 
-  document.getElementById('time-sl').innerText = new Intl.DateTimeFormat(
-    'en-US',
-    {
+  if (slTime) {
+    slTime.innerText = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Colombo',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: false,
-    },
-  ).format(now)
+    }).format(now)
+  }
 }
 
-// ============ KZ TRACKER ============
+// ============ REAL-TIME KZ TRACKER ============
+function initKZTracker() {
+  if (kzInterval) clearInterval(kzInterval)
+  kzInterval = setInterval(() => {
+    updateKZTracker()
+    updateCountdown()
+  }, 1000)
+  updateKZTracker()
+  updateCountdown()
+}
+
 function updateKZTracker() {
-  const londonTime = new Date().toLocaleString('en-US', {
-    timeZone: 'Europe/London',
-  })
-  const hour = new Date(londonTime).getHours()
-  const minute = new Date(londonTime).getMinutes()
+  const now = new Date()
+  const londonTime = new Date(
+    now.toLocaleString('en-US', { timeZone: 'Europe/London' }),
+  )
+  const hour = londonTime.getHours()
+  const minute = londonTime.getMinutes()
   const currentTime = hour + minute / 60
 
   let kzName = ''
   let percentage = 0
   let message = ''
+  let color = '#f59e0b'
 
-  // London Kill Zone (8:00-10:00)
+  // London Kill Zone (08:00-10:00 UTC)
   if (currentTime >= 8 && currentTime < 10) {
-    kzName = '🇬🇧 LONDON KZ'
+    kzName = '🇬🇧 LONDON KZ - ACTIVE 🔥'
     const elapsed = currentTime - 8
     percentage = Math.min(100, (elapsed / 2) * 100)
-    message = '🔥 Prime London session - High volatility expected!'
+    const remaining = (10 - currentTime) * 60
+    const remainingMinutes = Math.floor(remaining)
+    message = `🔥 LONDON SESSION ACTIVE! ${remainingMinutes} minutes remaining`
+    color = '#f97316'
   }
-  // New York Kill Zone (13:00-15:00)
+  // New York Kill Zone (13:00-15:00 UTC)
   else if (currentTime >= 13 && currentTime < 15) {
-    kzName = '🇺🇸 NEW YORK KZ'
+    kzName = '🇺🇸 NEW YORK KZ - ACTIVE 💪'
     const elapsed = currentTime - 13
     percentage = Math.min(100, (elapsed / 2) * 100)
-    message = '💪 NY session open - Major moves incoming!'
+    const remaining = (15 - currentTime) * 60
+    const remainingMinutes = Math.floor(remaining)
+    message = `💪 NY SESSION ACTIVE! ${remainingMinutes} minutes remaining`
+    color = '#ef4444'
   }
-  // Asia Kill Zone (20:00-22:00)
+  // Asia Kill Zone (20:00-22:00 UTC)
   else if (currentTime >= 20 || currentTime < 2) {
-    kzName = '🇯🇵 ASIA KZ'
-    let adjustedTime = currentTime >= 20 ? currentTime - 20 : currentTime + 4
-    percentage = Math.min(100, (adjustedTime / 2) * 100)
-    message = '🌏 Asian session - Watch for breakouts!'
+    kzName = '🇯🇵 ASIA KZ - ACTIVE 🌏'
+    let adjustedTime
+    if (currentTime >= 20) {
+      adjustedTime = currentTime - 20
+      percentage = Math.min(100, (adjustedTime / 2) * 100)
+      const remaining = (22 - currentTime) * 60
+      const remainingMinutes = Math.floor(remaining)
+      message = `🌏 ASIA SESSION ACTIVE! ${remainingMinutes} minutes remaining`
+    } else {
+      adjustedTime = currentTime + 4
+      percentage = Math.min(100, (adjustedTime / 2) * 100)
+      const remaining = (2 - currentTime) * 60
+      const remainingMinutes = Math.floor(remaining)
+      message = `🌏 ASIA SESSION ACTIVE! ${remainingMinutes} minutes remaining`
+    }
+    color = '#8b5cf6'
   }
-  // Overlap (13:00-15:00 is already NY)
+  // London-NY Overlap (12:00-13:00 UTC)
   else if (currentTime >= 12 && currentTime < 13) {
-    kzName = '⚡ LONDON-NY OVERLAP'
-    percentage = 75
-    message = '🚀 Highest volatility period - Perfect for trading!'
-  } else {
+    kzName = '⚡ LONDON-NY OVERLAP - MAX VOLATILITY 🚀'
+    const elapsed = currentTime - 12
+    percentage = 75 + elapsed * 25
+    const remaining = (13 - currentTime) * 60
+    const remainingMinutes = Math.floor(remaining)
+    message = `🚀 HIGHEST VOLATILITY! ${remainingMinutes} minutes remaining`
+    color = '#dc2626'
+  }
+  // Off-session
+  else {
     kzName = '💤 OFF-SESSION'
     percentage = 20
-    message = '⏰ Next KZ: London (8:00-10:00 UTC)'
+    color = '#94a3b8'
+
+    if (currentTime < 8) {
+      message = `⏰ Next: London KZ in ${formatTimeRemaining((8 - currentTime) * 60)}`
+    } else if (currentTime < 12) {
+      message = `⏰ Next: Overlap in ${formatTimeRemaining((12 - currentTime) * 60)}`
+    } else if (currentTime < 13) {
+      message = `⏰ Next: NY KZ in ${formatTimeRemaining((13 - currentTime) * 60)}`
+    } else if (currentTime < 20) {
+      message = `⏰ Next: Asia KZ in ${formatTimeRemaining((20 - currentTime) * 60)}`
+    } else {
+      message = `⏰ Next: London KZ in ${formatTimeRemaining((24 - currentTime + 8) * 60)}`
+    }
   }
 
-  document.getElementById('active-kz-name').innerHTML = kzName
-  document.getElementById('kz-percent').innerText = `${Math.round(percentage)}%`
-  document.getElementById('kz-bar').style.width = `${percentage}%`
-  document.getElementById('kz-message').innerHTML = message
+  const kzNameElement = document.getElementById('active-kz-name')
+  const kzPercentElement = document.getElementById('kz-percent')
+  const kzBarElement = document.getElementById('kz-bar')
+  const kzMessageElement = document.getElementById('kz-message')
+
+  if (kzNameElement) kzNameElement.innerHTML = kzName
+  if (kzPercentElement)
+    kzPercentElement.innerText = `${Math.round(percentage)}%`
+  if (kzBarElement) {
+    kzBarElement.style.width = `${percentage}%`
+    kzBarElement.style.backgroundColor = color
+  }
+  if (kzMessageElement) kzMessageElement.innerHTML = message
+}
+
+function updateCountdown() {
+  const now = new Date()
+  const londonTime = new Date(
+    now.toLocaleString('en-US', { timeZone: 'Europe/London' }),
+  )
+  const hour = londonTime.getHours()
+  const minute = londonTime.getMinutes()
+  const second = londonTime.getSeconds()
+  const currentTime = hour + minute / 60 + second / 3600
+
+  let nextKZStart = null
+  let nextKZName = ''
+
+  if (currentTime < 8) {
+    nextKZStart = 8
+    nextKZName = 'London KZ'
+  } else if (currentTime < 12) {
+    nextKZStart = 12
+    nextKZName = 'London-NY Overlap'
+  } else if (currentTime < 13) {
+    nextKZStart = 13
+    nextKZName = 'New York KZ'
+  } else if (currentTime < 20) {
+    nextKZStart = 20
+    nextKZName = 'Asia KZ'
+  } else {
+    nextKZStart = 24 + 8
+    nextKZName = 'London KZ'
+  }
+
+  let remainingSeconds = (nextKZStart - currentTime) * 3600
+  if (remainingSeconds < 0) remainingSeconds += 24 * 3600
+
+  const hours = Math.floor(remainingSeconds / 3600)
+  const minutes = Math.floor((remainingSeconds % 3600) / 60)
+  const seconds = Math.floor(remainingSeconds % 60)
+
+  const countdownElement = document.getElementById('kz-countdown')
+  if (countdownElement) {
+    const isActive =
+      (currentTime >= 8 && currentTime < 10) ||
+      (currentTime >= 13 && currentTime < 15) ||
+      currentTime >= 20 ||
+      currentTime < 2 ||
+      (currentTime >= 12 && currentTime < 13)
+
+    if (isActive) {
+      countdownElement.innerHTML = `🔥 ${nextKZName.toUpperCase()} ACTIVE NOW! 🔥`
+      countdownElement.style.color = '#f97316'
+      countdownElement.style.fontSize = '14px'
+    } else {
+      countdownElement.innerHTML = `⏰ ${nextKZName} starts in: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      countdownElement.style.color = '#94a3b8'
+    }
+  }
+}
+
+function formatTimeRemaining(minutes) {
+  if (minutes <= 0) return 'starting now'
+  const hours = Math.floor(minutes / 60)
+  const mins = Math.floor(minutes % 60)
+  if (hours > 0) {
+    return `${hours}h ${mins}m`
+  }
+  return `${mins} minutes`
 }

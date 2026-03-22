@@ -9,11 +9,16 @@
   --loss: #ef4444;
 }
 
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', sans-serif;
-  margin: 0;
   overflow: hidden;
 }
 
@@ -23,10 +28,15 @@ body {
   color: #10b981;
   height: 35px;
   line-height: 35px;
-  font-size: 11px;
+  font-size: 12px;
   overflow: hidden;
   border-bottom: 2px solid var(--accent);
   white-space: nowrap;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
 }
 
 .ticker-content {
@@ -34,6 +44,7 @@ body {
   white-space: nowrap;
   animation: scroll 40s linear infinite;
   padding-left: 100%;
+  font-weight: 500;
 }
 
 @keyframes scroll {
@@ -48,17 +59,23 @@ body {
 .app-layout {
   display: flex;
   height: calc(100vh - 35px);
+  margin-top: 35px;
 }
 
-/* Sidebar & Navigation */
+/* Sidebar */
 .sidebar {
-  width: 280px;
+  width: 320px;
   background: var(--side-bg);
   border-right: 1px solid var(--border);
   padding: 25px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  position: fixed;
+  left: 0;
+  top: 35px;
+  bottom: 0;
+  z-index: 100;
 }
 
 .brand {
@@ -66,6 +83,7 @@ body {
   font-weight: 800;
   margin-bottom: 30px;
   letter-spacing: -0.5px;
+  text-align: center;
 }
 
 .brand span {
@@ -75,43 +93,21 @@ body {
   border-radius: 4px;
 }
 
-.nav-item {
-  display: block;
-  width: 100%;
-  padding: 14px;
-  text-align: left;
-  background: transparent;
-  border: none;
-  font-weight: 600;
-  color: var(--dim);
-  cursor: pointer;
-  border-radius: 10px;
-  margin-bottom: 8px;
-  transition: 0.2s;
-}
-
-.nav-item:hover {
-  background: #f1f5f9;
-  color: var(--text);
-}
-
-.nav-item.active {
-  background: #f1f5f9;
-  color: var(--text);
-  border-left: 5px solid var(--accent);
-}
-
-/* Clocks & KZ Tracker */
 .clock-section {
   margin: 20px 0;
 }
 
 .clock-card {
   background: #f8fafc;
-  padding: 15px;
+  padding: 12px;
   border-radius: 12px;
   margin-bottom: 10px;
   border: 1px solid var(--border);
+  transition: transform 0.2s;
+}
+
+.clock-card:hover {
+  transform: translateX(5px);
 }
 
 .clock-card .label {
@@ -123,8 +119,9 @@ body {
 }
 
 .clock-card .time-val {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .kz-tracker {
@@ -133,12 +130,13 @@ body {
   background: #fffbeb;
   border: 1px solid #fef3c7;
   border-radius: 12px;
+  transition: all 0.3s;
 }
 
 .kz-header {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   margin-bottom: 8px;
   color: #92400e;
@@ -154,27 +152,71 @@ body {
 .progress-fill {
   background: #f59e0b;
   height: 100%;
-  transition: 0.8s;
+  transition: width 0.5s ease;
 }
 
-/* Main Glass Card */
+.side-nav {
+  margin-top: auto;
+}
+
+.nav-item {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-weight: 600;
+  color: var(--dim);
+  cursor: pointer;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.nav-item:hover {
+  background: #f1f5f9;
+  color: var(--text);
+  transform: translateX(5px);
+}
+
+.nav-item.active {
+  background: #f1f5f9;
+  color: var(--text);
+  border-left: 5px solid var(--accent);
+}
+
+/* Main Content */
 .main-content {
   flex: 1;
-  padding: 40px;
+  margin-left: 320px;
+  padding: 30px;
   overflow-y: auto;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  min-height: calc(100vh - 35px);
 }
 
 .glass-card {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1200px;
+  margin: 0 auto;
   background: #fff;
   border-radius: 24px;
-  padding: 40px;
+  padding: 35px;
   border: 1px solid var(--border);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .section-header {
@@ -186,15 +228,27 @@ body {
   gap: 15px;
 }
 
+.section-header h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
 .search-container input {
   padding: 10px 15px;
   border: 1px solid var(--accent);
   border-radius: 10px;
   font-size: 13px;
-  width: 180px;
+  width: 200px;
+  transition: all 0.2s;
 }
 
-/* Alignment for Input Grid */
+.search-container input:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.1);
+  width: 250px;
+}
+
+/* Input Grid */
 .input-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -210,7 +264,8 @@ select {
   font-size: 14px;
   outline: none;
   background: #fcfcfc;
-  transition: 0.2s;
+  transition: all 0.2s;
+  font-family: inherit;
 }
 
 input:focus,
@@ -225,12 +280,12 @@ select:focus {
   font-weight: 800;
   border: none;
   width: 100%;
-  padding: 18px;
+  padding: 16px;
   border-radius: 12px;
   cursor: pointer;
   font-size: 16px;
   margin-bottom: 20px;
-  transition: transform 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-primary:hover {
@@ -261,7 +316,7 @@ textarea {
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
-  transition: 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-copy:hover {
@@ -271,29 +326,37 @@ textarea {
 
 /* History & Stats */
 .trade-log {
-  max-height: 500px;
+  max-height: 600px;
   overflow-y: auto;
 }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   margin-top: 20px;
 }
 
 .stat-box {
-  padding: 30px;
+  padding: 25px;
   background: #f8fafc;
   border-radius: 20px;
   text-align: center;
   border: 1px solid var(--border);
-  transition: 0.2s;
+  transition: all 0.2s;
 }
 
 .stat-box:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.stat-box .label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .stat-value {
@@ -305,19 +368,19 @@ textarea {
 
 .history-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .mini-btn {
-  padding: 8px 15px;
+  padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: #fff;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.2s;
 }
 
 .mini-btn:hover {
@@ -351,6 +414,7 @@ textarea {
   font-size: 12px;
   font-weight: 600;
   padding: 0;
+  transition: color 0.2s;
 }
 
 .danger-link:hover {
@@ -377,27 +441,53 @@ textarea {
   background: var(--text);
 }
 
-/* Responsive */
+/* Responsive Design */
 @media (max-width: 768px) {
-  .app-layout {
-    flex-direction: column;
-  }
-
   .sidebar {
     width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+    position: relative;
+    top: 0;
+    height: auto;
+    max-height: 400px;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 20px;
   }
 
   .input-grid {
     grid-template-columns: 1fr;
   }
 
-  .main-content {
+  .glass-card {
     padding: 20px;
   }
 
-  .glass-card {
-    padding: 20px;
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-container input {
+    width: 100%;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .clock-card .time-val {
+    font-size: 1rem;
+  }
+
+  .brand {
+    font-size: 1.2rem;
+  }
+
+  .stat-value {
+    font-size: 1.5rem;
   }
 }
