@@ -1,9 +1,32 @@
-// ============ DATA MANAGEMENT ============
+// ============ DATA ============
 let trades = JSON.parse(localStorage.getItem('ma_trades')) || []
 let chart = null
 let kzInterval = null
 
-// ============ INITIALIZATION ============
+const COINS = [
+  'BTC/USDT',
+  'ETH/USDT',
+  'BNB/USDT',
+  'SOL/USDT',
+  'XRP/USDT',
+  'ADA/USDT',
+  'DOGE/USDT',
+  'DOT/USDT',
+  'MATIC/USDT',
+  'LINK/USDT',
+  'AVAX/USDT',
+  'UNI/USDT',
+  'ATOM/USDT',
+  'LTC/USDT',
+  'ETC/USDT',
+  'TRX/USDT',
+  'NEAR/USDT',
+  'APT/USDT',
+  'ARB/USDT',
+  'OP/USDT',
+]
+
+// ============ INIT ============
 document.addEventListener('DOMContentLoaded', () => {
   updateClocks()
   setInterval(updateClocks, 1000)
@@ -11,11 +34,22 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchMarketData()
   setInterval(fetchMarketData, 30000)
   loadCoinSuggestions()
-  if (trades.length > 0) {
-    updateStats()
-    renderHistory()
-  }
+  setupRiskPreview()
+  renderHistory()
+  updateStats()
 })
+
+// ============ TOAST NOTIFICATIONS ============
+function toast(msg, type = 'success', duration = 3000) {
+  const el = document.getElementById('toast')
+  if (!el) return
+  el.textContent = msg
+  el.className = `toast show ${type}`
+  clearTimeout(el._timer)
+  el._timer = setTimeout(() => {
+    el.className = 'toast'
+  }, duration)
+}
 
 // ============ NAVIGATION ============
 function showSection(id) {
@@ -32,7 +66,56 @@ function showSection(id) {
   if (id === 'stats') updateStats()
 }
 
-// ============ TRADE MANAGEMENT ============
+// ============ QUICK COIN SELECT ============
+function setQuickCoin(coin) {
+  document.getElementById('coin').value = coin
+  document.querySelectorAll('.coin-pill').forEach((p) => {
+    p.classList.toggle('active', p.textContent === coin.replace('/USDT', ''))
+  })
+  calcRisk()
+}
+
+// ============ RISK CALCULATOR ============
+function setupRiskPreview() {
+  ;['entry', 'tp', 'sl', 'side'].forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.addEventListener('input', calcRisk)
+  })
+}
+
+function calcRisk() {
+  const entry = parseFloat(document.getElementById('entry').value)
+  const tp = parseFloat(document.getElementById('tp').value)
+  const sl = parseFloat(document.getElementById('sl').value)
+  const side = document.getElementById('side').value
+
+  const preview = document.getElementById('risk-preview')
+  if (!preview) return
+
+  if (!entry || !tp || !sl) {
+    preview.style.display = 'none'
+    return
+  }
+
+  let profitPct, lossPct
+  if (side.includes('LONG')) {
+    profitPct = ((tp - entry) / entry) * 100
+    lossPct = ((entry - sl) / entry) * 100
+  } else {
+    profitPct = ((entry - tp) / entry) * 100
+    lossPct = ((sl - entry) / entry) * 100
+  }
+
+  const rr = lossPct > 0 ? (profitPct / lossPct).toFixed(2) : '∞'
+
+  document.getElementById('rr-ratio').textContent = `1:${rr}`
+  document.getElementById('profit-pct').textContent =
+    `+${profitPct.toFixed(2)}%`
+  document.getElementById('loss-pct').textContent = `-${lossPct.toFixed(2)}%`
+  preview.style.display = 'flex'
+}
+
+// ============ SIGNAL GENERATOR ============
 function executeSignal() {
   const coin = document.getElementById('coin').value.trim()
   const side = document.getElementById('side').value
@@ -41,23 +124,26 @@ function executeSignal() {
   const be = document.getElementById('be').value
   const sl = parseFloat(document.getElementById('sl').value)
   const note = document.getElementById('note').value
+  const leverage = document.getElementById('leverage').value
 
-  // Validation
-  if (!coin) return alert('❌ Asset name required')
-  if (isNaN(entry) || entry <= 0) return alert('❌ Valid entry price required')
-  if (isNaN(sl) || sl <= 0) return alert('❌ Valid stop loss required')
-  if (isNaN(tp) || tp <= 0) return alert('❌ Valid target profit required')
+  if (!coin) return toast('❌ Asset name required', 'error')
+  if (isNaN(entry) || entry <= 0)
+    return toast('❌ Valid entry price required', 'error')
+  if (isNaN(sl) || sl <= 0) return toast('❌ Valid stop loss required', 'error')
+  if (isNaN(tp) || tp <= 0)
+    return toast('❌ Valid take profit required', 'error')
 
   const trade = {
     id: Date.now(),
     date: new Date().toISOString(),
     coin: coin.toUpperCase(),
-    side: side,
-    entry: entry,
-    tp: tp,
+    side,
+    entry,
+    tp,
     be: be || 'None',
-    sl: sl,
-    note: note,
+    sl,
+    leverage: leverage || 'None',
+    note,
     status: 'OPEN',
     exitPrice: null,
     exitDate: null,
@@ -65,9 +151,12 @@ function executeSignal() {
   }
 
   trades.unshift(trade)
-  localStorage.setItem('ma_trades', JSON.stringify(trades))
+  saveTrades()
 
-  // Generate Telegram message
+  // Telegram message
+  const leverageLine = leverage ? `🔹 Leverage: ${leverage}\n` : ''
+  const beLine = be ? `🔹 BE: ${be}\n` : ''
+  const noteLine = note ? `📝 Note: ${note}\n` : ''
   const message =
     `✅ NEW SIGNAL: ${trade.coin}\n` +
     `━━━━━━━━━━━━━━━━━━━━\n` +
@@ -75,139 +164,193 @@ function executeSignal() {
     `🔹 Entry: ${trade.entry}\n` +
     `🔹 TP: ${trade.tp}\n` +
     `🔹 SL: ${trade.sl}\n` +
-    `${trade.be !== 'None' ? `🔹 BE: ${trade.be}\n` : ''}` +
-    `${trade.note ? `📝 Note: ${trade.note}\n` : ''}` +
+    beLine +
+    leverageLine +
+    noteLine +
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `🚀 Master Analyst VIP - Trade with Confidence!`
 
-  document.getElementById('output').value = message
+  const output = document.getElementById('output')
+  const outputArea = document.getElementById('output-area')
+  output.value = message
+  outputArea.style.display = 'block'
+  outputArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 
   // Clear form
-  document.getElementById('entry').value = ''
-  document.getElementById('tp').value = ''
-  document.getElementById('sl').value = ''
-  document.getElementById('note').value = ''
+  ;['entry', 'tp', 'sl', 'be', 'note', 'leverage'].forEach((id) => {
+    const el = document.getElementById(id)
+    if (el) el.value = ''
+  })
+  document.getElementById('risk-preview').style.display = 'none'
+  document
+    .querySelectorAll('.coin-pill')
+    .forEach((p) => p.classList.remove('active'))
 
-  alert('✅ Signal saved successfully!')
   updateStats()
+  toast('✅ Signal saved successfully!', 'success')
 }
 
 function copyOutput() {
   const output = document.getElementById('output')
-  output.select()
-  document.execCommand('copy')
-  alert('📋 Copied to clipboard! Ready for Telegram.')
+  if (!output.value) return toast('Nothing to copy', 'error')
+  navigator.clipboard
+    .writeText(output.value)
+    .then(() => toast('📋 Copied to clipboard!', 'info'))
+    .catch(() => {
+      output.select()
+      document.execCommand('copy')
+      toast('📋 Copied!', 'info')
+    })
 }
 
-function updateTradeStatus(id, status, exitPrice = null) {
+// ============ TRADE STATUS ============
+function updateTradeStatus(id, status) {
   const trade = trades.find((t) => t.id === id)
-  if (trade && trade.status === 'OPEN') {
-    trade.status = status
-    trade.exitDate = new Date().toISOString()
+  if (!trade || trade.status !== 'OPEN') return
 
-    if (exitPrice && !isNaN(parseFloat(exitPrice))) {
-      trade.exitPrice = parseFloat(exitPrice)
-      if (trade.side.includes('LONG')) {
-        trade.profit = ((trade.exitPrice - trade.entry) / trade.entry) * 100
-      } else {
-        trade.profit = ((trade.entry - trade.exitPrice) / trade.entry) * 100
-      }
-      trade.profit = parseFloat(trade.profit.toFixed(2))
-    }
+  const exitDefault = status === 'WIN' ? trade.tp : trade.sl
+  const rawExit = prompt(
+    `Enter exit price for P&L (default: ${exitDefault}):`,
+    exitDefault,
+  )
+  if (rawExit === null) return // cancelled
 
-    localStorage.setItem('ma_trades', JSON.stringify(trades))
-    renderHistory()
-    updateStats()
+  const exitPrice = parseFloat(rawExit) || exitDefault
 
-    alert(`✅ Trade marked as ${status}`)
+  trade.status = status
+  trade.exitDate = new Date().toISOString()
+  trade.exitPrice = exitPrice
+
+  if (trade.side.includes('LONG')) {
+    trade.profit = ((exitPrice - trade.entry) / trade.entry) * 100
+  } else {
+    trade.profit = ((trade.entry - exitPrice) / trade.entry) * 100
   }
+  trade.profit = parseFloat(trade.profit.toFixed(2))
+
+  saveTrades()
+  renderHistory()
+  updateStats()
+  toast(`Trade marked as ${status}`, status === 'WIN' ? 'success' : 'error')
 }
 
 function deleteTrade(id) {
-  if (confirm('Are you sure you want to delete this trade?')) {
-    trades = trades.filter((t) => t.id !== id)
-    localStorage.setItem('ma_trades', JSON.stringify(trades))
-    renderHistory()
-    updateStats()
-    alert('🗑️ Trade deleted')
-  }
+  if (!confirm('Delete this trade permanently?')) return
+  trades = trades.filter((t) => t.id !== id)
+  saveTrades()
+  renderHistory()
+  updateStats()
+  toast('🗑 Trade deleted', 'info')
 }
 
-// ============ RENDER HISTORY ============
-function renderHistory() {
-  const historyDiv = document.getElementById('trade-log')
-  if (!historyDiv) return
+function saveTrades() {
+  localStorage.setItem('ma_trades', JSON.stringify(trades))
+}
 
-  if (trades.length === 0) {
-    historyDiv.innerHTML =
-      '<div style="text-align: center; padding: 40px; color: var(--dim);">📭 No trades yet. Create your first signal!</div>'
+// ============ HISTORY ============
+function renderHistory() {
+  const log = document.getElementById('trade-log')
+  if (!log) return
+
+  const filter = document.getElementById('history-filter')?.value || 'ALL'
+  const filtered =
+    filter === 'ALL' ? trades : trades.filter((t) => t.status === filter)
+
+  const sub = document.getElementById('history-subtitle')
+  if (sub)
+    sub.textContent = `${filtered.length} of ${trades.length} trade${trades.length !== 1 ? 's' : ''}`
+
+  if (filtered.length === 0) {
+    log.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-icon">📭</span>
+        <p>${trades.length === 0 ? 'No trades yet. Generate your first signal!' : 'No trades match this filter.'}</p>
+      </div>`
     return
   }
 
-  historyDiv.innerHTML = trades
-    .map(
-      (trade) => `
-        <div class="trade-item" style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                <div>
-                    <strong style="font-size: 16px;">${trade.coin}</strong>
-                    <span style="margin-left: 10px; padding: 2px 8px; background: ${trade.side.includes('LONG') ? '#10b98120' : '#ef444420'}; border-radius: 6px; font-size: 12px;">${trade.side}</span>
-                    <span style="margin-left: 10px; padding: 2px 8px; background: ${getStatusColor(trade.status)}; border-radius: 6px; font-size: 12px;">${trade.status}</span>
-                </div>
-                <small style="color: var(--dim);">${new Date(trade.date).toLocaleString()}</small>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; font-size: 13px; margin-bottom: 10px;">
-                <div>📊 Entry: ${trade.entry}</div>
-                <div>🎯 TP: ${trade.tp}</div>
-                <div>🛑 SL: ${trade.sl}</div>
-                <div>⚖️ BE: ${trade.be}</div>
-            </div>
-            ${trade.note ? `<div style="background: #f8fafc; padding: 8px; border-radius: 8px; font-size: 12px; margin-bottom: 10px;">📝 ${trade.note}</div>` : ''}
-            ${
-              trade.status === 'OPEN'
-                ? `
-                <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
-                    <button onclick="updateTradeStatus(${trade.id}, 'WIN', prompt('Enter exit price (for P&L calculation):', '${trade.tp}'))" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">✅ WIN</button>
-                    <button onclick="updateTradeStatus(${trade.id}, 'LOSS', prompt('Enter exit price (for P&L calculation):', '${trade.sl}'))" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">❌ LOSS</button>
-                    <button onclick="deleteTrade(${trade.id})" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">🗑️ DELETE</button>
-                </div>
-            `
-                : `
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px;">
-                    ${trade.profit !== null ? `<span style="color: ${trade.profit >= 0 ? '#10b981' : '#ef4444'}">📈 P&L: ${trade.profit >= 0 ? '+' : ''}${trade.profit}%</span>` : ''}
-                    ${trade.exitPrice ? ` | Exit: ${trade.exitPrice}` : ''}
-                    <small style="color: var(--dim);"> | Closed: ${new Date(trade.exitDate).toLocaleString()}</small>
-                </div>
-            `
-            }
-        </div>
-    `,
-    )
-    .join('')
-}
+  log.innerHTML = filtered
+    .map((trade) => {
+      const sideClass = trade.side.includes('LONG')
+        ? 'badge-long'
+        : 'badge-short'
+      const statusClass =
+        trade.status === 'WIN'
+          ? 'badge-win'
+          : trade.status === 'LOSS'
+            ? 'badge-loss'
+            : 'badge-open'
+      const itemClass =
+        trade.status === 'WIN'
+          ? 'status-win'
+          : trade.status === 'LOSS'
+            ? 'status-loss'
+            : 'status-open'
+      const date = new Date(trade.date).toLocaleString()
 
-function getStatusColor(status) {
-  if (status === 'WIN') return '#10b98120'
-  if (status === 'LOSS') return '#ef444420'
-  return '#facc1520'
+      const pnlHtml =
+        trade.profit !== null
+          ? `
+      <div class="trade-pnl">
+        <span class="pnl-val ${trade.profit >= 0 ? 'pos' : 'neg'}">${trade.profit >= 0 ? '+' : ''}${trade.profit}%</span>
+        <span class="pnl-close-info">Exit: ${trade.exitPrice} · Closed: ${new Date(trade.exitDate).toLocaleString()}</span>
+      </div>`
+          : ''
+
+      const actionsHtml =
+        trade.status === 'OPEN'
+          ? `
+      <div class="trade-actions">
+        <button class="trade-btn win"  onclick="updateTradeStatus(${trade.id}, 'WIN')">✓ WIN</button>
+        <button class="trade-btn loss" onclick="updateTradeStatus(${trade.id}, 'LOSS')">✗ LOSS</button>
+        <button class="trade-btn del"  onclick="deleteTrade(${trade.id})">Delete</button>
+      </div>`
+          : `
+      <div class="trade-actions">
+        <button class="trade-btn del" onclick="deleteTrade(${trade.id})">Delete</button>
+      </div>`
+
+      return `
+      <div class="trade-item ${itemClass}">
+        <div class="trade-top">
+          <div>
+            <div class="trade-name">${trade.coin}</div>
+            <div class="trade-badges">
+              <span class="badge ${sideClass}">${trade.side}</span>
+              <span class="badge ${statusClass}">${trade.status}</span>
+              ${trade.leverage !== 'None' ? `<span class="badge badge-open">${trade.leverage}</span>` : ''}
+            </div>
+          </div>
+          <div class="trade-date">${date}</div>
+        </div>
+        <div class="trade-prices">
+          <div class="price-item"><span class="price-label">Entry</span><span class="price-val">${trade.entry}</span></div>
+          <div class="price-item"><span class="price-label">TP</span><span class="price-val">${trade.tp}</span></div>
+          <div class="price-item"><span class="price-label">SL</span><span class="price-val">${trade.sl}</span></div>
+          <div class="price-item"><span class="price-label">BE</span><span class="price-val">${trade.be}</span></div>
+        </div>
+        ${trade.note ? `<div class="trade-note">📝 ${trade.note}</div>` : ''}
+        ${actionsHtml}
+        ${pnlHtml}
+      </div>`
+    })
+    .join('')
 }
 
 // ============ STATISTICS ============
 function updateStats() {
-  const total = trades.length
   const closed = trades.filter((t) => t.status !== 'OPEN')
   const wins = closed.filter((t) => t.status === 'WIN').length
-  const losses = closed.filter((t) => t.status === 'LOSS').length
+  const open = trades.filter((t) => t.status === 'OPEN').length
   const winRate = closed.length
     ? ((wins / closed.length) * 100).toFixed(1)
     : '0'
 
-  // Calculate profit factor
   const totalProfit = closed
     .filter((t) => t.profit > 0)
-    .reduce((sum, t) => sum + t.profit, 0)
+    .reduce((s, t) => s + t.profit, 0)
   const totalLoss = Math.abs(
-    closed.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0),
+    closed.filter((t) => t.profit < 0).reduce((s, t) => s + t.profit, 0),
   )
   const profitFactor =
     totalLoss > 0
@@ -215,11 +358,23 @@ function updateStats() {
       : totalProfit > 0
         ? '∞'
         : '0'
+  const totalPnl = closed.reduce((s, t) => s + (t.profit || 0), 0)
 
-  document.getElementById('stat-total').innerText = total
-  document.getElementById('stat-closed').innerText = closed.length
-  document.getElementById('stat-winrate').innerText = winRate + '%'
-  document.getElementById('stat-profit-factor').innerText = profitFactor
+  const set = (id, val) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = val
+  }
+  set('stat-total', trades.length)
+  set('stat-closed', closed.length)
+  set('stat-open', open)
+  set('stat-winrate', winRate + '%')
+  set('stat-profit-factor', profitFactor)
+
+  const pnlEl = document.getElementById('stat-total-pnl')
+  if (pnlEl) {
+    pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2) + '%'
+    pnlEl.style.color = totalPnl >= 0 ? 'var(--win)' : 'var(--loss)'
+  }
 
   updateMonthlyChart()
 }
@@ -237,10 +392,10 @@ function updateMonthlyChart() {
         year: 'numeric',
       })
       if (!monthlyData[month])
-        monthlyData[month] = { wins: 0, losses: 0, profit: 0 }
+        monthlyData[month] = { wins: 0, losses: 0, pnl: 0 }
       if (trade.status === 'WIN') monthlyData[month].wins++
       if (trade.status === 'LOSS') monthlyData[month].losses++
-      if (trade.profit) monthlyData[month].profit += trade.profit
+      if (trade.profit) monthlyData[month].pnl += trade.profit
     })
 
   const months = Object.keys(monthlyData)
@@ -257,14 +412,14 @@ function updateMonthlyChart() {
         {
           label: 'Wins',
           data: winData,
-          backgroundColor: '#10b981',
-          borderRadius: 8,
+          backgroundColor: 'rgba(34,211,160,0.7)',
+          borderRadius: 6,
         },
         {
           label: 'Losses',
           data: lossData,
-          backgroundColor: '#ef4444',
-          borderRadius: 8,
+          backgroundColor: 'rgba(244,63,94,0.7)',
+          borderRadius: 6,
         },
       ],
     },
@@ -272,24 +427,34 @@ function updateMonthlyChart() {
       responsive: true,
       maintainAspectRatio: true,
       plugins: {
-        legend: { position: 'top' },
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#4a5a78',
+            font: { family: 'Space Grotesk', size: 12 },
+          },
+        },
         tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        x: { ticks: { color: '#4a5a78' }, grid: { color: '#1e2d45' } },
+        y: {
+          ticks: { color: '#4a5a78', stepSize: 1 },
+          grid: { color: '#1e2d45' },
+          beginAtZero: true,
+        },
       },
     },
   })
 }
 
-// ============ DATA IMPORT/EXPORT ============
+// ============ EXPORT / IMPORT ============
 function exportAllData() {
-  const dataStr = JSON.stringify(trades, null, 2)
-  const blob = new Blob([dataStr], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `trades_backup_${new Date().toISOString().split('T')[0]}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  alert('💾 Data exported successfully!')
+  const blob = new Blob([JSON.stringify(trades, null, 2)], {
+    type: 'application/json',
+  })
+  dlBlob(blob, `trades_backup_${today()}.json`)
+  toast('💾 Data exported!', 'success')
 }
 
 function importAdminData() {
@@ -297,25 +462,21 @@ function importAdminData() {
   input.type = 'file'
   input.accept = 'application/json'
   input.onchange = (e) => {
-    const file = e.target.files[0]
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = (ev) => {
       try {
-        const importedTrades = JSON.parse(event.target.result)
-        if (Array.isArray(importedTrades)) {
-          trades = importedTrades
-          localStorage.setItem('ma_trades', JSON.stringify(trades))
-          renderHistory()
-          updateStats()
-          alert('✅ Data imported successfully!')
-        } else {
-          alert('❌ Invalid data format')
-        }
-      } catch (error) {
-        alert('❌ Error importing data')
+        const imported = JSON.parse(ev.target.result)
+        if (!Array.isArray(imported)) throw new Error()
+        trades = imported
+        saveTrades()
+        renderHistory()
+        updateStats()
+        toast('✅ Data imported!', 'success')
+      } catch {
+        toast('❌ Invalid JSON file', 'error')
       }
     }
-    reader.readAsText(file)
+    reader.readAsText(e.target.files[0])
   }
   input.click()
 }
@@ -330,12 +491,13 @@ function downloadCSV() {
     'TP',
     'SL',
     'BE',
+    'Leverage',
     'Status',
     'Exit Price',
     'P&L%',
     'Note',
   ]
-  const csvData = trades.map((t) => [
+  const rows = trades.map((t) => [
     t.id,
     new Date(t.date).toLocaleString(),
     t.coin,
@@ -344,354 +506,250 @@ function downloadCSV() {
     t.tp,
     t.sl,
     t.be,
+    t.leverage || '',
     t.status,
     t.exitPrice || '',
     t.profit !== null ? t.profit : '',
     t.note || '',
   ])
-
-  const csvContent = [headers, ...csvData]
-    .map((row) => row.map((cell) => `"${cell}"`).join(','))
+  const csv = [headers, ...rows]
+    .map((r) => r.map((c) => `"${c}"`).join(','))
     .join('\n')
-  const blob = new Blob(['\uFEFF' + csvContent], {
-    type: 'text/csv;charset=utf-8;',
-  })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = `trades_report_${new Date().toISOString().split('T')[0]}.csv`
-  link.click()
-  URL.revokeObjectURL(link.href)
-  alert('📊 CSV report generated!')
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  dlBlob(blob, `trades_report_${today()}.csv`)
+  toast('📊 CSV exported!', 'success')
+}
+
+function dlBlob(blob, name) {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+function today() {
+  return new Date().toISOString().split('T')[0]
 }
 
 function clearAllData() {
-  if (
-    confirm('⚠️ ARE YOU SURE? This will delete ALL trade history permanently!')
-  ) {
-    const confirmation = prompt('Type "DELETE" to confirm:')
-    if (confirmation === 'DELETE') {
-      trades = []
-      localStorage.clear()
-      alert('🗑️ Database wiped successfully.')
-      location.reload()
-    } else {
-      alert('Cancelled - Database not wiped')
-    }
+  if (!confirm('⚠️ This will permanently delete ALL trade history. Continue?'))
+    return
+  const code = prompt('Type "DELETE" to confirm:')
+  if (code !== 'DELETE') {
+    toast('Cancelled', 'info')
+    return
   }
+  trades = []
+  localStorage.clear()
+  renderHistory()
+  updateStats()
+  const outputArea = document.getElementById('output-area')
+  if (outputArea) outputArea.style.display = 'none'
+  toast('🗑 Database wiped', 'info')
 }
 
 // ============ MARKET DATA ============
 async function fetchMarketData() {
   try {
-    const response = await fetch(
-      'https://api.binance.com/api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"]',
+    const resp = await fetch(
+      'https://api.binance.com/api/v3/ticker/24hr?symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT"]',
     )
-    const data = await response.json()
-
+    const data = await resp.json()
     const tickerText = data
       .map((coin) => {
-        const price = parseFloat(coin.lastPrice).toFixed(2)
+        const price = parseFloat(coin.lastPrice).toLocaleString(undefined, {
+          maximumFractionDigits: 4,
+        })
         const change = parseFloat(coin.priceChangePercent).toFixed(2)
-        const emoji = change >= 0 ? '🟢' : '🔴'
-        return `${coin.symbol.replace('USDT', '')}: $${price} ${emoji} ${change}%`
+        const arrow = parseFloat(change) >= 0 ? '▲' : '▼'
+        const sym = coin.symbol.replace('USDT', '')
+        return `${sym} $${price} ${arrow} ${change}%`
       })
-      .join(' | ')
+      .join('   ·   ')
 
-    const tickerElement = document.getElementById('binance-ticker')
-    if (tickerElement) {
-      tickerElement.innerHTML = `🔥 LIVE MARKET: ${tickerText}`
-    }
-  } catch (error) {
-    console.error('Market data error:', error)
-    const tickerElement = document.getElementById('binance-ticker')
-    if (tickerElement) {
-      tickerElement.innerHTML = '⚠️ Market data unavailable - check connection'
+    const el = document.getElementById('binance-ticker')
+    if (el) el.textContent = `⬡ LIVE   ${tickerText}   ⬡   ${tickerText}`
+
+    const statusEl = document.getElementById('sidebar-status')
+    if (statusEl) statusEl.textContent = 'LIVE'
+  } catch {
+    const el = document.getElementById('binance-ticker')
+    if (el) el.textContent = '⚠ Market data unavailable'
+    const statusEl = document.getElementById('sidebar-status')
+    if (statusEl) {
+      statusEl.textContent = 'OFFLINE'
+      statusEl.style.color = 'var(--loss)'
     }
   }
 }
 
+// ============ COIN SUGGESTIONS ============
 function loadCoinSuggestions() {
-  const coins = [
-    'BTC/USDT',
-    'ETH/USDT',
-    'BNB/USDT',
-    'SOL/USDT',
-    'XRP/USDT',
-    'ADA/USDT',
-    'DOGE/USDT',
-    'DOT/USDT',
-    'MATIC/USDT',
-    'LINK/USDT',
-    'AVAX/USDT',
-    'UNI/USDT',
-    'ATOM/USDT',
-    'LTC/USDT',
-    'ETC/USDT',
-  ]
   const datalist = document.getElementById('coin-suggestions')
-  if (datalist) {
-    datalist.innerHTML = coins.map((c) => `<option value="${c}">`).join('')
-  }
+  if (datalist)
+    datalist.innerHTML = COINS.map((c) => `<option value="${c}">`).join('')
 }
 
 function filterQuickSearch() {
-  const searchTerm = document.getElementById('search-coin').value.toLowerCase()
-  const suggestions = document.getElementById('coin-suggestions')
-  if (!suggestions) return
+  const term = document.getElementById('search-coin').value.toLowerCase()
+  const datalist = document.getElementById('coin-suggestions')
+  if (!datalist) return
+  const filtered = COINS.filter((c) => c.toLowerCase().includes(term))
+  datalist.innerHTML = filtered.map((c) => `<option value="${c}">`).join('')
 
-  const allOptions = Array.from(suggestions.options)
-  const coins = [
-    'BTC/USDT',
-    'ETH/USDT',
-    'BNB/USDT',
-    'SOL/USDT',
-    'XRP/USDT',
-    'ADA/USDT',
-    'DOGE/USDT',
-    'DOT/USDT',
-    'MATIC/USDT',
-    'LINK/USDT',
-    'AVAX/USDT',
-    'UNI/USDT',
-    'ATOM/USDT',
-    'LTC/USDT',
-    'ETC/USDT',
-  ]
-
-  const filtered = coins.filter((c) => c.toLowerCase().includes(searchTerm))
-  suggestions.innerHTML = filtered.map((c) => `<option value="${c}">`).join('')
+  // Highlight matching quick pills
+  document.querySelectorAll('.coin-pill').forEach((p) => {
+    const visible = p.textContent.toLowerCase().includes(term)
+    p.style.opacity = term && !visible ? '0.3' : '1'
+  })
 }
 
 // ============ CLOCKS ============
 function updateClocks() {
   const now = new Date()
-
-  const nyTime = document.getElementById('time-ny')
-  const londonTime = document.getElementById('time-london')
-  const slTime = document.getElementById('time-sl')
-
-  if (nyTime) {
-    nyTime.innerText = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/New_York',
+  const fmt = (tz) =>
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: tz,
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: false,
     }).format(now)
-  }
 
-  if (londonTime) {
-    londonTime.innerText = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Europe/London',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).format(now)
+  const set = (id, val) => {
+    const el = document.getElementById(id)
+    if (el) el.textContent = val
   }
-
-  if (slTime) {
-    slTime.innerText = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Colombo',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).format(now)
-  }
+  set('time-ny', fmt('America/New_York'))
+  set('time-london', fmt('Europe/London'))
+  set('time-sl', fmt('Asia/Colombo'))
 }
 
-// ============ REAL-TIME KZ TRACKER (IMPROVED) ============
+// ============ KZ TRACKER ============
 function initKZTracker() {
   if (kzInterval) clearInterval(kzInterval)
-  kzInterval = setInterval(() => {
-    updateKZTracker()
-  }, 1000)
   updateKZTracker()
+  kzInterval = setInterval(updateKZTracker, 1000)
 }
+
+const KZ_SESSIONS = [
+  {
+    name: 'LONDON KZ',
+    start: 8,
+    end: 10,
+    icon: '🔥',
+    color: '#f97316',
+    desc: 'High volatility · London open',
+  },
+  {
+    name: 'LONDON-NY OVERLAP',
+    start: 12,
+    end: 13,
+    icon: '⚡',
+    color: '#ef4444',
+    desc: 'Maximum liquidity · Best time to trade',
+  },
+  {
+    name: 'NEW YORK KZ',
+    start: 13,
+    end: 15,
+    icon: '💪',
+    color: '#f43f5e',
+    desc: 'Major moves · US session open',
+  },
+  {
+    name: 'ASIA KZ',
+    start: 20,
+    end: 22,
+    icon: '🌏',
+    color: '#8b5cf6',
+    desc: 'Asian breakouts · JPY pairs',
+  },
+]
 
 function updateKZTracker() {
   const now = new Date()
-  const londonTime = new Date(
+  const london = new Date(
     now.toLocaleString('en-US', { timeZone: 'Europe/London' }),
   )
-  let hour = londonTime.getHours()
-  let minute = londonTime.getMinutes()
-  let second = londonTime.getSeconds()
-  let currentTime = hour + minute / 60 + second / 3600
+  const h = london.getHours(),
+    m = london.getMinutes(),
+    s = london.getSeconds()
+  const cur = h + m / 60 + s / 3600
 
-  let kzName = ''
-  let percentage = 0
-  let message = ''
-  let color = '#f59e0b'
-  let isActive = false
+  let active = null
 
-  // Define sessions
-  const sessions = [
-    {
-      name: 'LONDON KZ',
-      start: 8,
-      end: 10,
-      icon: '🔥',
-      color: '#f97316',
-      desc: 'High volatility - London open',
-    },
-    {
-      name: 'LONDON-NY OVERLAP',
-      start: 12,
-      end: 13,
-      icon: '⚡',
-      color: '#dc2626',
-      desc: 'Maximum liquidity - Best trading time',
-    },
-    {
-      name: 'NEW YORK KZ',
-      start: 13,
-      end: 15,
-      icon: '💪',
-      color: '#ef4444',
-      desc: 'Major market moves - US session',
-    },
-    {
-      name: 'ASIA KZ',
-      start: 20,
-      end: 22,
-      icon: '🌏',
-      color: '#8b5cf6',
-      desc: 'Asian breakout opportunities',
-    },
-  ]
-
-  // Check active sessions
-  for (let session of sessions) {
-    if (currentTime >= session.start && currentTime < session.end) {
-      isActive = true
-      const elapsed = currentTime - session.start
-      const duration = session.end - session.start
-      percentage = (elapsed / duration) * 100
-      const remaining = (session.end - currentTime) * 60
-      kzName = `${session.icon} ${session.name} - ACTIVE ${session.icon}`
-      message = `${session.desc} • ${formatTimeRemaining(remaining)} remaining`
-      color = session.color
+  for (const sess of KZ_SESSIONS) {
+    if (cur >= sess.start && cur < sess.end) {
+      const elapsed = cur - sess.start
+      const duration = sess.end - sess.start
+      const pct = (elapsed / duration) * 100
+      const remaining = (sess.end - cur) * 3600
+      active = { sess, pct, remaining }
       break
     }
   }
 
-  // Handle Asia session crossing midnight
-  if (!isActive && (currentTime >= 20 || currentTime < 2)) {
-    isActive = true
-    let start = 20
-    let end = 22
-    let elapsed, remaining
+  const tracker = document.getElementById('kz-tracker')
+  const nameEl = document.getElementById('active-kz-name')
+  const pctEl = document.getElementById('kz-percent')
+  const barEl = document.getElementById('kz-bar')
+  const msgEl = document.getElementById('kz-message')
+  const countdownEl = document.getElementById('kz-countdown')
 
-    if (currentTime >= 20) {
-      elapsed = currentTime - 20
-      remaining = (22 - currentTime) * 60
-    } else {
-      elapsed = currentTime + 4
-      remaining = (2 - currentTime) * 60
+  if (active) {
+    const { sess, pct, remaining } = active
+    if (tracker) tracker.classList.add('active')
+    if (nameEl) nameEl.textContent = `${sess.icon} ${sess.name} — ACTIVE`
+    if (pctEl) pctEl.textContent = `${Math.round(pct)}%`
+    if (barEl) {
+      barEl.style.width = `${pct}%`
+      barEl.style.backgroundColor = sess.color
     }
+    if (msgEl) msgEl.textContent = sess.desc
+    if (countdownEl)
+      countdownEl.textContent = `🔥 Ends in ${fmtCountdown(remaining)}`
+  } else {
+    if (tracker) tracker.classList.remove('active')
 
-    percentage = (elapsed / 2) * 100
-    kzName = `🌏 ASIA KZ - ACTIVE 🌏`
-    message = `Asian breakout opportunities • ${formatTimeRemaining(remaining)} remaining`
-    color = '#8b5cf6'
-  }
-
-  // Off-session - Show countdown percentage (increases as session approaches)
-  if (!isActive) {
-    let nextSession = null
-    let timeUntilNext = Infinity
-
-    for (let session of sessions) {
-      let startTime = session.start
-      let waitTime
-
-      if (currentTime < session.start) {
-        waitTime = session.start - currentTime
-      } else {
-        waitTime = 24 - currentTime + session.start
-      }
-
-      if (waitTime < timeUntilNext) {
-        timeUntilNext = waitTime
-        nextSession = session
+    // Find next session
+    let next = null,
+      minWait = Infinity
+    for (const sess of KZ_SESSIONS) {
+      const wait = cur < sess.start ? sess.start - cur : 24 - cur + sess.start
+      if (wait < minWait) {
+        minWait = wait
+        next = sess
       }
     }
 
-    // Special handling for Asia session
-    if (currentTime >= 22 && currentTime < 24) {
-      timeUntilNext = 24 - currentTime + 8
-      nextSession = { name: 'LONDON KZ', icon: '🔥', color: '#f97316' }
-    }
-
-    // Calculate countdown percentage (0% = far away, 100% = about to start)
-    const maxWaitTime = 24
-    percentage = Math.min(
-      100,
-      Math.max(0, ((maxWaitTime - timeUntilNext) / maxWaitTime) * 100),
+    const waitSecs = minWait * 3600
+    const maxWait = 24 * 3600
+    const pct = Math.max(
+      0,
+      Math.min(100, ((maxWait - waitSecs) / maxWait) * 100),
     )
 
-    // Format countdown display
-    const hours = Math.floor(timeUntilNext)
-    const minutes = Math.floor((timeUntilNext % 1) * 60)
-    const secs = Math.floor((((timeUntilNext % 1) * 60) % 1) * 60)
-
-    kzName = `⏰ COUNTDOWN TO ${nextSession.name}`
-    message = `${nextSession.icon} ${nextSession.name} starts in ${hours}h ${minutes}m ${secs}s`
-    color = '#94a3b8'
-
-    // Update countdown display separately
-    const countdownEl = document.getElementById('kz-countdown')
-    if (countdownEl) {
-      countdownEl.innerHTML = `⏰ ${nextSession.name}: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-      countdownEl.style.color = '#f59e0b'
+    if (nameEl) nameEl.textContent = `⏰ Next: ${next?.name || '—'}`
+    if (pctEl) pctEl.textContent = `${Math.round(pct)}%`
+    if (barEl) {
+      barEl.style.width = `${pct}%`
+      barEl.style.backgroundColor = '#4a5a78'
     }
-  } else {
-    // During active session, show remaining time in countdown
-    const countdownEl = document.getElementById('kz-countdown')
-    if (countdownEl) {
-      let sessionEnd = 0
-      if (kzName.includes('LONDON') && !kzName.includes('OVERLAP'))
-        sessionEnd = 10
-      else if (kzName.includes('OVERLAP')) sessionEnd = 13
-      else if (kzName.includes('NEW YORK')) sessionEnd = 15
-      else if (kzName.includes('ASIA')) sessionEnd = 22
-
-      if (sessionEnd > 0) {
-        const remaining = (sessionEnd - currentTime) * 3600
-        const hours = Math.floor(remaining / 3600)
-        const minutes = Math.floor((remaining % 3600) / 60)
-        const secs = Math.floor(remaining % 60)
-        countdownEl.innerHTML = `🔥 Session ends in: ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-        countdownEl.style.color = '#f97316'
-      }
-    }
+    if (msgEl) msgEl.textContent = next ? `${next.icon} ${next.desc}` : ''
+    if (countdownEl)
+      countdownEl.textContent = next
+        ? `Starts in ${fmtCountdown(waitSecs)}`
+        : ''
   }
-
-  // Update DOM
-  const kzNameElement = document.getElementById('active-kz-name')
-  const kzPercentElement = document.getElementById('kz-percent')
-  const kzBarElement = document.getElementById('kz-bar')
-  const kzMessageElement = document.getElementById('kz-message')
-
-  if (kzNameElement) kzNameElement.innerHTML = kzName
-  if (kzPercentElement)
-    kzPercentElement.innerText = `${Math.round(percentage)}%`
-  if (kzBarElement) {
-    kzBarElement.style.width = `${percentage}%`
-    kzBarElement.style.backgroundColor = color
-  }
-  if (kzMessageElement) kzMessageElement.innerHTML = message
 }
 
-function formatTimeRemaining(minutes) {
-  if (minutes <= 0) return 'starting now'
-  const hours = Math.floor(minutes / 60)
-  const mins = Math.floor(minutes % 60)
-
-  if (hours > 0) {
-    return `${hours}h ${mins}m`
-  }
-  return `${mins} minutes`
+function fmtCountdown(secs) {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = Math.floor(secs % 60)
+  if (h > 0)
+    return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
+  return `${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`
 }

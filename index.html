@@ -6,57 +6,61 @@
     <title>Master Analyst VIP | Pro Terminal</title>
     <link rel="stylesheet" href="style.css" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
+    <!-- Ticker -->
     <div class="top-ticker">
       <div id="binance-ticker" class="ticker-content">
-        🔄 Loading market data...
+        ⟳ Connecting to market data...
       </div>
     </div>
 
     <div class="app-layout">
+      <!-- Sidebar -->
       <aside class="sidebar">
-        <div class="brand">MASTER ANALYST <span>VIP</span></div>
+        <div class="brand">
+          <span class="brand-ma">MASTER</span>
+          <span class="brand-vip">ANALYST <em>VIP</em></span>
+        </div>
 
         <div class="clock-section">
           <div class="clock-card">
-            <span class="label">NEW YORK 🇺🇸</span>
-            <span id="time-ny" class="time-val">00:00:00</span>
+            <span class="clock-flag">🇺🇸</span>
+            <div class="clock-info">
+              <span class="clock-label">NEW YORK</span>
+              <span id="time-ny" class="time-val">--:--:--</span>
+            </div>
           </div>
           <div class="clock-card">
-            <span class="label">LONDON 🇬🇧</span>
-            <span id="time-london" class="time-val">00:00:00</span>
+            <span class="clock-flag">🇬🇧</span>
+            <div class="clock-info">
+              <span class="clock-label">LONDON</span>
+              <span id="time-london" class="time-val">--:--:--</span>
+            </div>
           </div>
           <div class="clock-card">
-            <span class="label">SRI LANKA 🇱🇰</span>
-            <span id="time-sl" class="time-val">00:00:00</span>
+            <span class="clock-flag">🇱🇰</span>
+            <div class="clock-info">
+              <span class="clock-label">SRI LANKA</span>
+              <span id="time-sl" class="time-val">--:--:--</span>
+            </div>
           </div>
         </div>
 
-        <div class="kz-tracker">
+        <!-- KZ Tracker -->
+        <div class="kz-tracker" id="kz-tracker">
           <div class="kz-header">
-            <span id="active-kz-name">🌍 Loading...</span>
-            <span id="kz-percent">0%</span>
+            <span id="active-kz-name">⌛ Loading...</span>
+            <span id="kz-percent" class="kz-pct">0%</span>
           </div>
           <div class="progress-bg">
             <div id="kz-bar" class="progress-fill" style="width: 0%"></div>
           </div>
-          <div
-            id="kz-message"
-            style="font-size: 11px; margin-top: 8px; color: #92400e"
-          ></div>
-          <div
-            id="kz-countdown"
-            style="
-              font-size: 13px;
-              font-weight: bold;
-              margin-top: 8px;
-              text-align: center;
-            "
-          ></div>
+          <div id="kz-message" class="kz-message"></div>
+          <div id="kz-countdown" class="kz-countdown"></div>
         </div>
 
         <nav class="side-nav">
@@ -65,154 +69,239 @@
             class="nav-item active"
             id="nav-generator"
           >
-            📊 Signal Generator
+            <span class="nav-icon">◈</span> Signal Generator
           </button>
           <button
             onclick="showSection('history')"
             class="nav-item"
             id="nav-history"
           >
-            📜 Trade History
+            <span class="nav-icon">≡</span> Trade History
           </button>
           <button
             onclick="showSection('stats')"
             class="nav-item"
             id="nav-stats"
           >
-            📈 Performance Stats
+            <span class="nav-icon">◎</span> Analytics
           </button>
         </nav>
+
+        <div class="sidebar-footer">
+          <span class="sidebar-version">v3.1.0</span>
+          <span class="sidebar-dot"></span>
+          <span class="sidebar-status" id="sidebar-status">LIVE</span>
+        </div>
       </aside>
 
+      <!-- Main -->
       <main class="main-content">
-        <section id="generator" class="app-section glass-card">
+        <!-- SIGNAL GENERATOR -->
+        <section id="generator" class="app-section">
           <div class="section-header">
-            <h2>Create New Signal</h2>
+            <div>
+              <h2 class="section-title">New Signal</h2>
+              <p class="section-sub">Create & publish a trading signal</p>
+            </div>
             <div class="search-container">
+              <span class="search-icon">⌕</span>
               <input
                 type="text"
                 id="search-coin"
-                placeholder="Search Coins..."
+                placeholder="Search coins..."
                 oninput="filterQuickSearch()"
               />
             </div>
           </div>
 
-          <div class="input-grid">
-            <input
-              type="text"
-              id="coin"
-              placeholder="ASSET (e.g. BTC/USDT)"
-              list="coin-suggestions"
-            />
-            <datalist id="coin-suggestions"></datalist>
-            <select id="side">
-              <option value="LONG 📈">LONG 📈</option>
-              <option value="SHORT 📉">SHORT 📉</option>
-            </select>
-            <input
-              type="number"
-              id="entry"
-              placeholder="Entry Price"
-              step="any"
-            />
-            <input
-              type="number"
-              id="tp"
-              placeholder="Target Profit"
-              step="any"
-            />
-            <input
-              type="number"
-              id="be"
-              placeholder="Break Even (BE)"
-              step="any"
-            />
-            <input type="number" id="sl" placeholder="Stop Loss" step="any" />
+          <div class="quick-coins" id="quick-coins">
+            <button class="coin-pill" onclick="setQuickCoin('BTC/USDT')">
+              BTC
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('ETH/USDT')">
+              ETH
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('SOL/USDT')">
+              SOL
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('XRP/USDT')">
+              XRP
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('BNB/USDT')">
+              BNB
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('ADA/USDT')">
+              ADA
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('DOGE/USDT')">
+              DOGE
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('AVAX/USDT')">
+              AVAX
+            </button>
           </div>
 
-          <div style="margin-bottom: 15px">
-            <label style="font-size: 12px; color: var(--dim)"
-              >📝 Optional Note:</label
-            >
-            <input
-              type="text"
-              id="note"
-              placeholder="Additional signal notes..."
-              style="
-                width: 100%;
-                margin-top: 5px;
-                padding: 10px;
-                border: 1px solid var(--border);
-                border-radius: 8px;
-              "
-            />
+          <div class="input-grid">
+            <div class="input-group span-2">
+              <label>Asset</label>
+              <input
+                type="text"
+                id="coin"
+                placeholder="e.g. BTC/USDT"
+                list="coin-suggestions"
+                autocomplete="off"
+              />
+              <datalist id="coin-suggestions"></datalist>
+            </div>
+            <div class="input-group">
+              <label>Direction</label>
+              <select id="side">
+                <option value="LONG 📈">LONG 📈</option>
+                <option value="SHORT 📉">SHORT 📉</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label>Entry Price</label>
+              <input type="number" id="entry" placeholder="0.00" step="any" />
+            </div>
+            <div class="input-group">
+              <label>Take Profit</label>
+              <input type="number" id="tp" placeholder="0.00" step="any" />
+            </div>
+            <div class="input-group">
+              <label>Stop Loss</label>
+              <input type="number" id="sl" placeholder="0.00" step="any" />
+            </div>
+            <div class="input-group">
+              <label
+                >Break Even <span class="optional-tag">optional</span></label
+              >
+              <input type="number" id="be" placeholder="0.00" step="any" />
+            </div>
+            <div class="input-group">
+              <label>Leverage <span class="optional-tag">optional</span></label>
+              <input type="text" id="leverage" placeholder="e.g. 10x" />
+            </div>
+            <div class="input-group span-3">
+              <label>Note <span class="optional-tag">optional</span></label>
+              <input
+                type="text"
+                id="note"
+                placeholder="Additional signal notes..."
+              />
+            </div>
+          </div>
+
+          <!-- Risk Preview -->
+          <div class="risk-preview" id="risk-preview" style="display: none">
+            <div class="risk-item">
+              <span class="risk-label">RISK/REWARD</span>
+              <span class="risk-val" id="rr-ratio">—</span>
+            </div>
+            <div class="risk-item">
+              <span class="risk-label">PROFIT %</span>
+              <span class="risk-val green" id="profit-pct">—</span>
+            </div>
+            <div class="risk-item">
+              <span class="risk-label">LOSS %</span>
+              <span class="risk-val red" id="loss-pct">—</span>
+            </div>
           </div>
 
           <button class="btn-primary" onclick="executeSignal()">
-            🚀 GENERATE & SAVE SIGNAL
+            <span>◈</span> GENERATE &amp; SAVE SIGNAL
           </button>
-          <textarea
-            id="output"
-            readonly
-            placeholder="Output for Telegram..."
-          ></textarea>
-          <button class="btn-copy" onclick="copyOutput()">
-            📋 COPY TO TELEGRAM
-          </button>
+
+          <div class="output-area" id="output-area" style="display: none">
+            <div class="output-header">
+              <span>Telegram Output</span>
+              <button class="btn-copy-inline" onclick="copyOutput()">
+                📋 Copy
+              </button>
+            </div>
+            <textarea id="output" readonly></textarea>
+          </div>
         </section>
 
-        <section
-          id="history"
-          class="app-section glass-card"
-          style="display: none"
-        >
+        <!-- TRADE HISTORY -->
+        <section id="history" class="app-section" style="display: none">
           <div class="section-header">
-            <h2>Trade History</h2>
+            <div>
+              <h2 class="section-title">Trade History</h2>
+              <p class="section-sub" id="history-subtitle">
+                All recorded signals
+              </p>
+            </div>
             <div class="history-actions">
+              <select
+                id="history-filter"
+                onchange="renderHistory()"
+                class="filter-select"
+              >
+                <option value="ALL">All Status</option>
+                <option value="OPEN">Open</option>
+                <option value="WIN">Win</option>
+                <option value="LOSS">Loss</option>
+              </select>
               <button class="mini-btn" onclick="exportAllData()">
-                💾 EXPORT ALL
+                💾 Export
               </button>
               <button class="mini-btn" onclick="importAdminData()">
-                📥 IMPORT DATA
+                📥 Import
               </button>
               <button class="mini-btn green" onclick="downloadCSV()">
-                📊 EXCEL REPORT
+                📊 CSV
               </button>
             </div>
           </div>
           <div id="trade-log" class="trade-log"></div>
         </section>
 
-        <section
-          id="stats"
-          class="app-section glass-card"
-          style="display: none"
-        >
-          <h2>Analytics Dashboard</h2>
-          <div class="stats-grid">
-            <div class="stat-box">
-              <span class="label">TOTAL SIGNALS</span>
-              <span id="stat-total" class="stat-value">0</span>
-            </div>
-            <div class="stat-box">
-              <span class="label">CLOSED TRADES</span>
-              <span id="stat-closed" class="stat-value">0</span>
-            </div>
-            <div class="stat-box">
-              <span class="label">WIN RATE</span>
-              <span id="stat-winrate" class="stat-value" style="color: #10b981"
-                >0%</span
-              >
-            </div>
-            <div class="stat-box">
-              <span class="label">PROFIT FACTOR</span>
-              <span id="stat-profit-factor" class="stat-value">0</span>
+        <!-- STATS -->
+        <section id="stats" class="app-section" style="display: none">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Analytics</h2>
+              <p class="section-sub">Performance overview</p>
             </div>
           </div>
 
-          <div style="margin-top: 30px">
-            <h3>📊 Monthly Performance</h3>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <span class="stat-icon">◈</span>
+              <span class="stat-label">TOTAL SIGNALS</span>
+              <span id="stat-total" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-icon">≡</span>
+              <span class="stat-label">CLOSED TRADES</span>
+              <span id="stat-closed" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-icon green-icon">✓</span>
+              <span class="stat-label">WIN RATE</span>
+              <span id="stat-winrate" class="stat-value win-color">0%</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-icon">◎</span>
+              <span class="stat-label">PROFIT FACTOR</span>
+              <span id="stat-profit-factor" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-icon green-icon">↑</span>
+              <span class="stat-label">TOTAL P&amp;L</span>
+              <span id="stat-total-pnl" class="stat-value">0%</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-icon">⟳</span>
+              <span class="stat-label">OPEN TRADES</span>
+              <span id="stat-open" class="stat-value">0</span>
+            </div>
+          </div>
+
+          <div class="chart-section">
+            <h3 class="chart-title">Monthly Performance</h3>
             <canvas
               id="monthly-chart"
               style="max-height: 300px; width: 100%"
@@ -221,12 +310,15 @@
 
           <div class="danger-zone">
             <button class="danger-link" onclick="clearAllData()">
-              ⚠️ Wipe Local Database
+              ⚠ Wipe Local Database
             </button>
           </div>
         </section>
       </main>
     </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>
