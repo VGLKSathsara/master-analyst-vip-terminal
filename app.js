@@ -592,37 +592,132 @@ function saveTrades() {
   localStorage.setItem('ma_trades', JSON.stringify(trades))
 }
 
-// ── COPY RESULT FROM HISTORY ──────────────────────────
+// ── POPUP PREVIEW ─────────────────────────────────────
+function showMsgPopup(msg, title) {
+  document.getElementById('popup-title').textContent = title
+  document.getElementById('popup-body').textContent = msg
+  document.getElementById('popup-overlay').classList.add('show')
+  // store message for copy button inside popup
+  document.getElementById('popup-copy-btn')._msg = msg
+}
+
+function closePopup() {
+  document.getElementById('popup-overlay').classList.remove('show')
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('popup-overlay')) closePopup()
+}
+
+function copyFromPopup() {
+  const msg = document.getElementById('popup-copy-btn')._msg
+  if (!msg) return
+  navigator.clipboard
+    .writeText(msg)
+    .then(() => {
+      toast('📋 Copied!', 'info')
+      closePopup()
+    })
+    .catch(() => toast('❌ Copy failed', 'error'))
+}
+
+// ── CONTEXT-AWARE MESSAGE GETTER ──────────────────────
+// Returns { title, msg } based on what button was clicked
+function getTradeMessage(id, type, extra) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return null
+  switch (type) {
+    case 'signal':
+      return { title: '📊 Signal Message', msg: buildOpenMessage(trade) }
+    case 'rr':
+      return {
+        title: `⚖️ 1:${extra} RR Update`,
+        msg: buildRRMessage(trade, extra),
+      }
+    case 'tp':
+      return {
+        title: `🎯 TP${extra + 1} Hit Message`,
+        msg:
+          trade.tpMessages?.[extra] ||
+          buildTPHitMessage(trade, extra, trade.tps[extra]),
+      }
+    case 'sl':
+      return { title: '🛑 Stop Loss Message', msg: buildSLMessage(trade) }
+    case 'result':
+      return {
+        title: '🏁 Final Result Message',
+        msg: trade.resultMessage || buildResultMessage(trade),
+      }
+    default:
+      return null
+  }
+}
+
+function openMsgPopup(id, type, extra) {
+  const data = getTradeMessage(id, type, extra)
+  if (data) showMsgPopup(data.msg, data.title)
+}
+
+// ── COPY HELPERS (called from popup copy btn) ─────────
 function copyResultMessage(id) {
-  const trade = trades.find((t) => t.id === id)
-  if (!trade) return
-  const msg = trade.resultMessage || buildResultMessage(trade)
+  const d = getTradeMessage(id, 'result')
+  if (!d) return
   navigator.clipboard
-    .writeText(msg)
-    .then(() => toast('📋 Result message copied!', 'info'))
-    .catch(() => toast('❌ Copy failed', 'error'))
+    .writeText(d.msg)
+    .then(() => toast('📋 Result copied!', 'info'))
 }
-
 function copyOpenMessage(id) {
-  const trade = trades.find((t) => t.id === id)
-  if (!trade) return
-  const msg = buildOpenMessage(trade)
+  const d = getTradeMessage(id, 'signal')
+  if (!d) return
   navigator.clipboard
-    .writeText(msg)
-    .then(() => toast('📋 Signal message copied!', 'info'))
-    .catch(() => toast('❌ Copy failed', 'error'))
+    .writeText(d.msg)
+    .then(() => toast('📋 Signal copied!', 'info'))
+}
+function copyTPMessage(id, i) {
+  const d = getTradeMessage(id, 'tp', i)
+  if (!d) return
+  navigator.clipboard
+    .writeText(d.msg)
+    .then(() => toast(`📋 TP${i + 1} copied!`, 'info'))
+}
+function copyRRMessage(id, n) {
+  const d = getTradeMessage(id, 'rr', n)
+  if (!d) return
+  navigator.clipboard
+    .writeText(d.msg)
+    .then(() => toast(`📋 1:${n} RR copied!`, 'info'))
+}
+function copySLMessage(id) {
+  const d = getTradeMessage(id, 'sl')
+  if (!d) return
+  navigator.clipboard
+    .writeText(d.msg)
+    .then(() => toast('📋 SL message copied!', 'info'))
 }
 
-function copyTPMessage(id, tpIndex) {
-  const trade = trades.find((t) => t.id === id)
-  if (!trade) return
-  const msg =
-    trade.tpMessages?.[tpIndex] ||
-    buildTPHitMessage(trade, tpIndex, trade.tps[tpIndex])
-  navigator.clipboard
-    .writeText(msg)
-    .then(() => toast(`📋 TP${tpIndex + 1} message copied!`, 'info'))
-    .catch(() => toast('❌ Copy failed', 'error'))
+// ── SL MESSAGE BUILDER ────────────────────────────────
+function buildSLMessage(trade) {
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  const tag = coinTag(trade)
+  const lossPct = Math.abs(calcLossPct(trade)).toFixed(2)
+  const exitP = trade.exitPrice || trade.sl
+  return (
+    `🛑 STOP LOSS HIT\n` +
+    `╔══════════════════════════╗\n` +
+    `  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n` +
+    `╚══════════════════════════╝\n\n` +
+    `📍 Entry   ›  ${trade.entry}\n` +
+    `🛑 SL Hit  ›  ${exitP}\n\n` +
+    `┌─────────────────────────┐\n` +
+    `  📉 Loss    :  -${lossPct}%\n` +
+    `  💰 Risk was :  ${trade.riskPct}% of balance\n` +
+    `└─────────────────────────┘\n\n` +
+    `💪 Losses are part of the game.\n` +
+    `   Protect capital. Next trade!\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🪷 Patient  ·  🌸 Discipline\n` +
+    `💸 Master Analysts VIP (crypto) 🔐`
+  )
 }
 
 // ── R:R MILESTONE MESSAGE ─────────────────────────────
@@ -664,63 +759,6 @@ function buildRRMessage(trade, rrMultiple) {
     `🪷 Patient  ·  🌸 Discipline\n` +
     `💸 Master Analysts VIP (crypto) 🔐`
   )
-}
-
-function copyRRMessage(id, rrMultiple) {
-  const trade = trades.find((t) => t.id === id)
-  if (!trade) return
-  const msg = buildRRMessage(trade, rrMultiple)
-  navigator.clipboard
-    .writeText(msg)
-    .then(() => toast(`📋 1:${rrMultiple} RR message copied!`, 'info'))
-    .catch(() => toast('❌ Copy failed', 'error'))
-}
-
-function copySLMessage(id) {
-  const trade = trades.find((t) => t.id === id)
-  if (!trade) return
-  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
-  const tag = coinTag(trade)
-  const lossPct = Math.abs(calcLossPct(trade)).toFixed(2)
-  const exitP = trade.status === 'LOSS' ? trade.exitPrice : trade.sl
-
-  const msg =
-    `🛑 STOP LOSS HIT\n` +
-    `╔══════════════════════════╗\n` +
-    `  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n` +
-    `╚══════════════════════════╝\n\n` +
-    `📍 Entry   ›  ${trade.entry}\n` +
-    `🛑 SL Hit  ›  ${exitP}\n\n` +
-    `┌─────────────────────────┐\n` +
-    `  📉 Loss    :  -${lossPct}%\n` +
-    `  💰 Risk was : ${trade.riskPct}% of balance\n` +
-    `└─────────────────────────┘\n\n` +
-    `💪 Losses are part of the game.\n` +
-    `   Stick to risk management. Next trade!\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
-    `🪷 Patient  ·  🌸 Discipline\n` +
-    `💸 Master Analysts VIP (crypto) 🔐`
-
-  navigator.clipboard
-    .writeText(msg)
-    .then(() => toast('📋 SL message copied!', 'info'))
-    .catch(() => toast('❌ Copy failed', 'error'))
-}
-
-function previewMessage(id, type, tpIndex) {
-  const trade = trades.find((t) => t.id === id)
-  if (!trade) return
-  let msg = ''
-  if (type === 'open') msg = buildOpenMessage(trade)
-  if (type === 'tp')
-    msg =
-      trade.tpMessages?.[tpIndex] ||
-      buildTPHitMessage(trade, tpIndex, trade.tps[tpIndex])
-  if (type === 'result') msg = trade.resultMessage || buildResultMessage(trade)
-
-  // Show in output panel and switch to generator tab to see it
-  showOutputMessage(msg)
-  showSection('generator')
 }
 
 // ── HISTORY RENDER ────────────────────────────────────
@@ -824,78 +862,88 @@ function renderHistory() {
         <button class="trade-btn del" onclick="deleteTrade(${trade.id})">🗑 Delete</button>
       </div>`
 
-      // ── Message Panel — always visible, all messages available ──
-      const lossPct = Math.abs(calcLossPct(trade))
-      const currentRR =
-        trade.profit != null ? Math.abs(trade.profit) / lossPct : null
-
-      // Which RR milestones to show (1:1, 1:2, 1:3)
-      const rrMilestones = [1, 2, 3]
-
-      const rrBtns = rrMilestones
-        .map((n) => {
-          const achieved = currentRR != null && currentRR >= n
-          return `<button class="msg-btn rr-btn ${achieved ? 'rr-achieved' : ''}"
-        onclick="copyRRMessage(${trade.id},${n})" title="Copy 1:${n} RR update message">
-        ${achieved ? '✅' : '⚖️'} 1:${n} RR
-      </button>`
+      // ── SMART CONTEXT-AWARE MESSAGE PANEL ─────────────────
+      const msgBtns = []
+      if (trade.status === 'OPEN') {
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
         })
-        .join('')
-
-      // TP buttons — always shown for every TP, hit ones highlighted
-      const tpBtns = (trade.tps || [trade.tp])
-        .map((tp, i) => {
-          const hit = (trade.hitTPs || []).includes(i)
-          return `<button class="msg-btn tp-msg-btn ${hit ? 'tp-btn-hit' : ''}"
-        onclick="copyTPMessage(${trade.id},${i})" title="Copy TP${i + 1} hit message">
-        ${hit ? '🎯' : '⬜'} TP${i + 1}
-      </button>`
+        msgBtns.push({
+          type: 'rr',
+          label: '⚖️ 1:1 RR',
+          cls: 'rr-btn',
+          extra: 1,
         })
-        .join('')
-
-      // SL message button
-      const slBtn = `<button class="msg-btn sl-btn"
-      onclick="copySLMessage(${trade.id})" title="Copy stop loss hit message">
-      🛑 SL Hit
-    </button>`
-
-      // Result button — always available (generates from current state)
-      const resultBtn = `<button class="msg-btn result-btn"
-      onclick="copyResultMessage(${trade.id})" title="Copy final result message">
-      🏁 Final Result
-    </button>`
-
-      // Signal button
-      const signalBtn = `<button class="msg-btn signal-btn"
-      onclick="copyOpenMessage(${trade.id})" title="Copy original signal message">
-      📊 Signal
-    </button>`
+        msgBtns.push({
+          type: 'rr',
+          label: '⚖️ 1:2 RR',
+          cls: 'rr-btn',
+          extra: 2,
+        })
+        msgBtns.push({
+          type: 'rr',
+          label: '⚖️ 1:3 RR',
+          cls: 'rr-btn',
+          extra: 3,
+        })
+        ;(trade.hitTPs || []).forEach((i) =>
+          msgBtns.push({
+            type: 'tp',
+            label: `🎯 TP${i + 1} Hit`,
+            cls: 'tp-msg-btn tp-btn-hit',
+            extra: i,
+          }),
+        )
+      } else if (trade.status === 'WIN') {
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
+        })
+        ;(trade.hitTPs || []).forEach((i) =>
+          msgBtns.push({
+            type: 'tp',
+            label: `🎯 TP${i + 1} Hit`,
+            cls: 'tp-msg-btn tp-btn-hit',
+            extra: i,
+          }),
+        )
+        msgBtns.push({
+          type: 'result',
+          label: '🏆 Final Result',
+          cls: 'result-btn',
+        })
+      } else if (trade.status === 'LOSS') {
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
+        })
+        msgBtns.push({ type: 'sl', label: '🛑 SL Hit', cls: 'sl-btn' })
+        msgBtns.push({
+          type: 'result',
+          label: '📋 Final Result',
+          cls: 'result-btn',
+        })
+      }
 
       const msgPanel = `
       <div class="msg-panel">
         <div class="msg-panel-header">
-          <span class="msg-panel-label">📤 Copy Telegram Message</span>
-          <span class="msg-panel-hint">Click any button to copy</span>
+          <span class="msg-panel-label">📤 Telegram Messages</span>
+          <span class="msg-panel-hint">Click to preview &amp; copy</span>
         </div>
-
-        <div class="msg-section">
-          <span class="msg-section-title">📊 Original Signal</span>
-          <div class="msg-btn-row">${signalBtn}</div>
-        </div>
-
-        <div class="msg-section">
-          <span class="msg-section-title">⚖️ R:R Updates — copy when trade is running</span>
-          <div class="msg-btn-row">${rrBtns}</div>
-        </div>
-
-        <div class="msg-section">
-          <span class="msg-section-title">🎯 TP Hit Messages — copy when each TP is reached</span>
-          <div class="msg-btn-row">${tpBtns}</div>
-        </div>
-
-        <div class="msg-section">
-          <span class="msg-section-title">🏁 Close Messages — copy when trade is closed</span>
-          <div class="msg-btn-row">${slBtn} ${resultBtn}</div>
+        <div class="msg-btn-row">
+          ${msgBtns
+            .map(
+              (b) =>
+                `<button class="msg-btn ${b.cls}" onclick="openMsgPopup(${trade.id},'${b.type}',${b.extra ?? 'null'})">
+              ${b.label}
+            </button>`,
+            )
+            .join('')}
         </div>
       </div>`
 

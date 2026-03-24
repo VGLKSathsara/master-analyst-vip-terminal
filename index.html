@@ -375,6 +375,35 @@
       </main>
     </div>
 
+    <!-- Message Preview Popup -->
+    <div
+      id="popup-overlay"
+      class="popup-overlay"
+      onclick="handleOverlayClick(event)"
+    >
+      <div class="popup-box">
+        <div class="popup-header">
+          <span id="popup-title" class="popup-title">Message Preview</span>
+          <button class="popup-close" onclick="closePopup()">✕</button>
+        </div>
+        <div class="popup-body-wrap">
+          <pre id="popup-body" class="popup-body"></pre>
+        </div>
+        <div class="popup-footer">
+          <span class="popup-hint"
+            >Review the message below before posting to Telegram</span
+          >
+          <button
+            id="popup-copy-btn"
+            class="popup-copy-btn"
+            onclick="copyFromPopup()"
+          >
+            📋 Copy &amp; Close
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="toast"></div>
 
