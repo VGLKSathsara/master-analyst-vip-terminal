@@ -435,7 +435,7 @@ function copyOutput() {
 // ── PRICE MONITOR ─────────────────────────────────────
 function startPriceMonitor() {
   if (priceMonitorInterval) clearInterval(priceMonitorInterval)
-  priceMonitorInterval = setInterval(checkOpenTrades, 10000)
+  priceMonitorInterval = setInterval(checkOpenTrades, 5000) // every 5 seconds
   checkOpenTrades()
 }
 
@@ -462,18 +462,24 @@ async function checkOpenTrades() {
       const isShort =
         trade.side.includes('Short') || trade.side.includes('Sell')
 
-      // SL hit → auto LOSS
-      if (isShort ? price >= trade.sl : price <= trade.sl) {
+      // ── SL check ──
+      // LONG:  SL triggers if price has reached OR fallen below SL
+      // SHORT: SL triggers if price has reached OR risen above SL
+      const slHit = isShort ? price >= trade.sl : price <= trade.sl
+      if (slHit) {
         autoCloseTrade(trade, 'LOSS', price)
         changed = true
         return
       }
 
-      // TP hits
+      // ── TP checks ──
+      // LONG:  TP triggers if price has reached OR risen above TP
+      // SHORT: TP triggers if price has reached OR fallen below TP
+      // This means even if price skips past the TP level, it still counts.
       trade.tps.forEach((tp, i) => {
         if ((trade.hitTPs || []).includes(i)) return
-        const hit = isShort ? price <= tp : price >= tp
-        if (!hit) return
+        const tpHit = isShort ? price <= tp : price >= tp
+        if (!tpHit) return
         if (!trade.hitTPs) trade.hitTPs = []
         trade.hitTPs.push(i)
 
@@ -483,11 +489,10 @@ async function checkOpenTrades() {
         trade.tpMessages[i] = tpMsg
         changed = true
 
-        // Show result popup in generator output panel
         showOutputMessage(tpMsg)
         toast(`🎯 ${trade.coin} TP${i + 1} hit @ ${price}!`, 'success', 6000)
 
-        // Last TP → close WIN
+        // All TPs hit → close as WIN
         if (trade.hitTPs.length === trade.tps.length) {
           autoCloseTrade(trade, 'WIN', price)
         }
