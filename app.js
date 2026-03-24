@@ -625,6 +625,88 @@ function copyTPMessage(id, tpIndex) {
     .catch(() => toast('❌ Copy failed', 'error'))
 }
 
+// ── R:R MILESTONE MESSAGE ─────────────────────────────
+function buildRRMessage(trade, rrMultiple) {
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  const tag = coinTag(trade)
+  const lossPct = Math.abs(calcLossPct(trade))
+  const profitPct = (lossPct * rrMultiple).toFixed(2)
+  const rrLabel = `1 : ${rrMultiple}`
+  const rrEmoji = getRREmoji(rrMultiple)
+  const dir = isShort ? 'SHORT 🔴' : 'LONG 🟢'
+
+  // Calculate what price that RR corresponds to
+  const rrPrice = isShort
+    ? (trade.entry - ((trade.entry * lossPct) / 100) * rrMultiple).toFixed(5)
+    : (trade.entry + ((trade.entry * lossPct) / 100) * rrMultiple).toFixed(5)
+
+  const motivation =
+    rrMultiple >= 3
+      ? `🚀 Exceptional trade! ${rrLabel} achieved!`
+      : rrMultiple >= 2
+        ? `🔥 Outstanding! ${rrLabel} — trade is running beautifully!`
+        : `✅ ${rrLabel} reached — consider moving SL to Break Even!`
+
+  return (
+    `${rrEmoji} ${rrLabel} RR REACHED!\n` +
+    `╔══════════════════════════╗\n` +
+    `  🀄  ${tag}  ${dir}\n` +
+    `╚══════════════════════════╝\n\n` +
+    `📍 Entry   ›  ${trade.entry}\n` +
+    `🎯 ${rrLabel} Level  ›  ~${rrPrice}\n\n` +
+    `┌─────────────────────────┐\n` +
+    `  📈 Profit  :  +${profitPct}%\n` +
+    `  ⚖️  R : R   :  ${rrLabel}  ${rrEmoji}\n` +
+    `  💰 Risk was : ${trade.riskPct}% of balance\n` +
+    `└─────────────────────────┘\n\n` +
+    `${motivation}\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🪷 Patient  ·  🌸 Discipline\n` +
+    `💸 Master Analysts VIP (crypto) 🔐`
+  )
+}
+
+function copyRRMessage(id, rrMultiple) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return
+  const msg = buildRRMessage(trade, rrMultiple)
+  navigator.clipboard
+    .writeText(msg)
+    .then(() => toast(`📋 1:${rrMultiple} RR message copied!`, 'info'))
+    .catch(() => toast('❌ Copy failed', 'error'))
+}
+
+function copySLMessage(id) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  const tag = coinTag(trade)
+  const lossPct = Math.abs(calcLossPct(trade)).toFixed(2)
+  const exitP = trade.status === 'LOSS' ? trade.exitPrice : trade.sl
+
+  const msg =
+    `🛑 STOP LOSS HIT\n` +
+    `╔══════════════════════════╗\n` +
+    `  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n` +
+    `╚══════════════════════════╝\n\n` +
+    `📍 Entry   ›  ${trade.entry}\n` +
+    `🛑 SL Hit  ›  ${exitP}\n\n` +
+    `┌─────────────────────────┐\n` +
+    `  📉 Loss    :  -${lossPct}%\n` +
+    `  💰 Risk was : ${trade.riskPct}% of balance\n` +
+    `└─────────────────────────┘\n\n` +
+    `💪 Losses are part of the game.\n` +
+    `   Stick to risk management. Next trade!\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🪷 Patient  ·  🌸 Discipline\n` +
+    `💸 Master Analysts VIP (crypto) 🔐`
+
+  navigator.clipboard
+    .writeText(msg)
+    .then(() => toast('📋 SL message copied!', 'info'))
+    .catch(() => toast('❌ Copy failed', 'error'))
+}
+
 function previewMessage(id, type, tpIndex) {
   const trade = trades.find((t) => t.id === id)
   if (!trade) return
@@ -742,20 +824,78 @@ function renderHistory() {
         <button class="trade-btn del" onclick="deleteTrade(${trade.id})">🗑 Delete</button>
       </div>`
 
-      // Message buttons panel
+      // ── Message Panel — always visible, all messages available ──
+      const lossPct = Math.abs(calcLossPct(trade))
+      const currentRR =
+        trade.profit != null ? Math.abs(trade.profit) / lossPct : null
+
+      // Which RR milestones to show (1:1, 1:2, 1:3)
+      const rrMilestones = [1, 2, 3]
+
+      const rrBtns = rrMilestones
+        .map((n) => {
+          const achieved = currentRR != null && currentRR >= n
+          return `<button class="msg-btn rr-btn ${achieved ? 'rr-achieved' : ''}"
+        onclick="copyRRMessage(${trade.id},${n})" title="Copy 1:${n} RR update message">
+        ${achieved ? '✅' : '⚖️'} 1:${n} RR
+      </button>`
+        })
+        .join('')
+
+      // TP buttons — always shown for every TP, hit ones highlighted
+      const tpBtns = (trade.tps || [trade.tp])
+        .map((tp, i) => {
+          const hit = (trade.hitTPs || []).includes(i)
+          return `<button class="msg-btn tp-msg-btn ${hit ? 'tp-btn-hit' : ''}"
+        onclick="copyTPMessage(${trade.id},${i})" title="Copy TP${i + 1} hit message">
+        ${hit ? '🎯' : '⬜'} TP${i + 1}
+      </button>`
+        })
+        .join('')
+
+      // SL message button
+      const slBtn = `<button class="msg-btn sl-btn"
+      onclick="copySLMessage(${trade.id})" title="Copy stop loss hit message">
+      🛑 SL Hit
+    </button>`
+
+      // Result button — always available (generates from current state)
+      const resultBtn = `<button class="msg-btn result-btn"
+      onclick="copyResultMessage(${trade.id})" title="Copy final result message">
+      🏁 Final Result
+    </button>`
+
+      // Signal button
+      const signalBtn = `<button class="msg-btn signal-btn"
+      onclick="copyOpenMessage(${trade.id})" title="Copy original signal message">
+      📊 Signal
+    </button>`
+
       const msgPanel = `
       <div class="msg-panel">
-        <span class="msg-panel-label">📤 Telegram Messages</span>
-        <div class="msg-btn-row">
-          <button class="msg-btn signal-btn" onclick="copyOpenMessage(${trade.id})">📋 Signal</button>
-          ${(trade.hitTPs || [])
-            .map(
-              (i) =>
-                `<button class="msg-btn tp-msg-btn" onclick="copyTPMessage(${trade.id},${i})">📋 TP${i + 1}</button>`,
-            )
-            .join('')}
-          ${trade.status !== 'OPEN' ? `<button class="msg-btn result-btn" onclick="copyResultMessage(${trade.id})">📋 Result</button>` : ''}
-          <button class="msg-btn preview-btn" onclick="previewMessage(${trade.id},'${trade.status !== 'OPEN' ? 'result' : 'open'}')">👁 Preview</button>
+        <div class="msg-panel-header">
+          <span class="msg-panel-label">📤 Copy Telegram Message</span>
+          <span class="msg-panel-hint">Click any button to copy</span>
+        </div>
+
+        <div class="msg-section">
+          <span class="msg-section-title">📊 Original Signal</span>
+          <div class="msg-btn-row">${signalBtn}</div>
+        </div>
+
+        <div class="msg-section">
+          <span class="msg-section-title">⚖️ R:R Updates — copy when trade is running</span>
+          <div class="msg-btn-row">${rrBtns}</div>
+        </div>
+
+        <div class="msg-section">
+          <span class="msg-section-title">🎯 TP Hit Messages — copy when each TP is reached</span>
+          <div class="msg-btn-row">${tpBtns}</div>
+        </div>
+
+        <div class="msg-section">
+          <span class="msg-section-title">🏁 Close Messages — copy when trade is closed</span>
+          <div class="msg-btn-row">${slBtn} ${resultBtn}</div>
         </div>
       </div>`
 

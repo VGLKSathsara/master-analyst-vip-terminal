@@ -1364,3 +1364,105 @@ textarea {
   opacity: 0.85;
   transform: translateY(-1px);
 }
+
+/* ── REBUILT MESSAGE PANEL ── */
+.msg-panel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 12px;
+}
+.msg-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(245, 200, 66, 0.04);
+}
+.msg-panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+.msg-panel-hint {
+  font-size: 10px;
+  color: var(--dim);
+}
+
+.msg-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.msg-section:last-child {
+  border-bottom: none;
+}
+.msg-section-title {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.msg-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.msg-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-family: var(--font-main);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid;
+  white-space: nowrap;
+}
+.msg-btn:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.signal-btn {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(245, 200, 66, 0.35);
+}
+.rr-btn {
+  background: var(--surface);
+  color: var(--muted);
+  border-color: var(--border);
+}
+.rr-achieved {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-color: rgba(245, 200, 66, 0.4);
+}
+.tp-msg-btn {
+  background: var(--surface);
+  color: var(--muted);
+  border-color: var(--border);
+}
+.tp-btn-hit {
+  background: var(--win-bg);
+  color: var(--win);
+  border-color: rgba(34, 211, 160, 0.35);
+}
+.sl-btn {
+  background: var(--loss-bg);
+  color: var(--loss);
+  border-color: rgba(244, 63, 94, 0.35);
+}
+.result-btn {
+  background: rgba(251, 146, 60, 0.1);
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.35);
+}
