@@ -160,7 +160,6 @@
                 <option value="Market Order">⚡ Market Order</option>
               </select>
             </div>
-
             <div class="input-group">
               <label>Direction</label>
               <select id="side">
@@ -182,9 +181,8 @@
                 oninput="calcRisk()"
               />
             </div>
-
             <div class="input-group">
-              <label>Stop Loss 🔻</label>
+              <label>Stop Loss 🛑</label>
               <input
                 type="number"
                 id="sl"
@@ -194,9 +192,7 @@
               />
             </div>
             <div class="input-group">
-              <label
-                >Risk % <span class="optional-tag">from balance</span></label
-              >
+              <label>Risk % <span class="optional-tag">of balance</span></label>
               <input
                 type="number"
                 id="risk-pct"
@@ -213,7 +209,7 @@
             </div>
           </div>
 
-          <!-- Multi TP Section -->
+          <!-- Multi-TP -->
           <div class="tp-section">
             <div class="tp-section-header">
               <label>🟢 Take Profit Targets</label>
@@ -229,13 +225,7 @@
                   step="any"
                   oninput="calcRisk()"
                 />
-                <button
-                  class="tp-remove"
-                  onclick="removeTP(1)"
-                  style="display: none"
-                >
-                  ✕
-                </button>
+                <button class="tp-remove" style="display: none">✕</button>
               </div>
               <div class="tp-row" id="tp-row-2">
                 <span class="tp-label">TP 2</span>

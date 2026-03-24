@@ -1,8 +1,7 @@
-// ============================================================
-//  MASTER ANALYST VIP — app.js  v4.0
-// ============================================================
+// ════════════════════════════════════════════════════
+//  MASTER ANALYST VIP  ·  app.js  v5.0
+// ════════════════════════════════════════════════════
 
-// ── DATA ────────────────────────────────────────────────────
 let trades = JSON.parse(localStorage.getItem('ma_trades')) || []
 let chart = null
 let kzInterval = null
@@ -39,7 +38,7 @@ const COINS = [
   'DOGE/USDT',
 ]
 
-// ── INIT ─────────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   updateClocks()
   setInterval(updateClocks, 1000)
@@ -53,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateStats()
 })
 
-// ── TOAST ────────────────────────────────────────────────────
+// ── TOAST ─────────────────────────────────────────────
 function toast(msg, type = 'success', duration = 3500) {
   const el = document.getElementById('toast')
   if (!el) return
@@ -65,7 +64,7 @@ function toast(msg, type = 'success', duration = 3500) {
   }, duration)
 }
 
-// ── NAVIGATION ───────────────────────────────────────────────
+// ── NAV ───────────────────────────────────────────────
 function showSection(id) {
   document
     .querySelectorAll('.app-section')
@@ -79,7 +78,7 @@ function showSection(id) {
   if (id === 'stats') updateStats()
 }
 
-// ── QUICK COIN ───────────────────────────────────────────────
+// ── QUICK COIN ────────────────────────────────────────
 function setQuickCoin(coin) {
   document.getElementById('coin').value = coin
   document
@@ -93,15 +92,14 @@ function setQuickCoin(coin) {
   calcRisk()
 }
 
-// ── MULTI-TP ─────────────────────────────────────────────────
+// ── MULTI-TP ──────────────────────────────────────────
 function addTP() {
   if (tpCount >= 6) return toast('Maximum 6 TPs allowed', 'info')
   tpCount++
   const row = document.createElement('div')
   row.className = 'tp-row'
   row.id = `tp-row-${tpCount}`
-  row.innerHTML = `
-    <span class="tp-label">TP ${tpCount}</span>
+  row.innerHTML = `<span class="tp-label">TP ${tpCount}</span>
     <input type="number" id="tp${tpCount}" placeholder="0.00000" step="any"/>
     <button class="tp-remove" onclick="removeTP(${tpCount})">✕</button>`
   document.getElementById('tp-inputs').appendChild(row)
@@ -110,14 +108,12 @@ function addTP() {
 function removeTP(n) {
   if (n === 1) return
   document.getElementById(`tp-row-${n}`)?.remove()
-  const rows = document.querySelectorAll('.tp-row')
   tpCount = 0
-  rows.forEach((row, i) => {
+  document.querySelectorAll('.tp-row').forEach((row, i) => {
     tpCount = i + 1
     row.id = `tp-row-${tpCount}`
     row.querySelector('.tp-label').textContent = `TP ${tpCount}`
-    const inp = row.querySelector('input')
-    inp.id = `tp${tpCount}`
+    row.querySelector('input').id = `tp${tpCount}`
     const btn = row.querySelector('.tp-remove')
     if (btn) {
       btn.onclick = () => removeTP(tpCount)
@@ -132,7 +128,7 @@ function getTPValues() {
     .filter((v) => !isNaN(v) && v > 0)
 }
 
-// ── RISK CALCULATOR ──────────────────────────────────────────
+// ── RISK CALC ─────────────────────────────────────────
 function setupRiskPreview() {
   ;['entry', 'sl', 'side'].forEach((id) =>
     document.getElementById(id)?.addEventListener('input', calcRisk),
@@ -166,30 +162,61 @@ function calcRisk() {
   preview.style.display = 'flex'
 }
 
-// ── MESSAGE BUILDER ──────────────────────────────────────────
-function buildMessage(trade) {
+// ── HELPERS ───────────────────────────────────────────
+function calcProfitPct(trade, price) {
   const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
-  const coinTag = '#' + trade.coin.replace('/', '').toUpperCase()
+  return isShort
+    ? ((trade.entry - price) / trade.entry) * 100
+    : ((price - trade.entry) / trade.entry) * 100
+}
+
+function calcLossPct(trade) {
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  return isShort
+    ? ((trade.sl - trade.entry) / trade.entry) * 100
+    : ((trade.entry - trade.sl) / trade.entry) * 100
+}
+
+function getRRLabel(rr) {
+  if (rr <= 0) return '0'
+  if (rr < 0.5) return '< 0.5'
+  if (rr < 1.0) return '< 1'
+  if (rr < 1.5) return '1 : 1'
+  if (rr < 2.5) return '1 : 2'
+  if (rr < 3.5) return '1 : 3'
+  if (rr < 4.5) return '1 : 4'
+  return `1 : ${Math.floor(rr)}`
+}
+
+function getRREmoji(rr) {
+  if (rr < 1) return '⚠️'
+  if (rr < 2) return '✅'
+  if (rr < 3) return '🔥'
+  return '🚀'
+}
+
+function coinTag(trade) {
+  return '#' + trade.coin.replace('/', '').toUpperCase()
+}
+
+function toBinanceSym(coin) {
+  return coin.replace('/', '').replace('.P', '').toUpperCase()
+}
+
+// ── OPEN SIGNAL MESSAGE ───────────────────────────────
+function buildOpenMessage(trade) {
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  const tag = coinTag(trade)
   const dir = isShort ? 'SHORT 🔴' : 'LONG  🟢'
   const arrow = isShort ? '⬇️' : '⬆️'
+  const lossPct = Math.abs(calcLossPct(trade)).toFixed(2)
+  const tp1Pct = Math.abs(calcProfitPct(trade, trade.tps[0])).toFixed(2)
+  const rr = (Math.abs(tp1Pct) / Math.abs(lossPct)).toFixed(2)
 
-  // R:R from TP1
-  const tp1 = trade.tps[0]
-  const profitPct = isShort
-    ? (((trade.entry - tp1) / trade.entry) * 100).toFixed(2)
-    : (((tp1 - trade.entry) / trade.entry) * 100).toFixed(2)
-  const lossPct = isShort
-    ? (((trade.sl - trade.entry) / trade.entry) * 100).toFixed(2)
-    : (((trade.entry - trade.sl) / trade.entry) * 100).toFixed(2)
-  const rr = (Math.abs(profitPct) / Math.abs(lossPct)).toFixed(2)
-
-  // TP lines with per-TP profit %
   const tpMedals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
   const tpLines = trade.tps
     .map((tp, i) => {
-      const pct = isShort
-        ? (((trade.entry - tp) / trade.entry) * 100).toFixed(2)
-        : (((tp - trade.entry) / trade.entry) * 100).toFixed(2)
+      const pct = Math.abs(calcProfitPct(trade, tp)).toFixed(2)
       return `  ${tpMedals[i]} TP ${i + 1}  ›  ${tp}   (+${pct}%)`
     })
     .join('\n')
@@ -200,23 +227,20 @@ function buildMessage(trade) {
 
   return (
     `╔══════════════════════════╗\n` +
-    `  🀄  ${coinTag}\n` +
+    `  🀄  ${tag}\n` +
     `  ${dir}  ${arrow}\n` +
-    `╚══════════════════════════╝\n` +
-    `\n` +
+    `╚══════════════════════════╝\n\n` +
     `📋 ${(trade.orderType || 'LIMIT ORDER').toUpperCase()}\n` +
-    `🔒 Leverage  :  ${trade.leverage}\n` +
-    `\n` +
+    `🔒 Leverage  :  ${trade.leverage}\n\n` +
     `┌─────────────────────────┐\n` +
     `  📍 Entry  ›  ${trade.entry}\n` +
     `${tpLines}\n` +
-    `  🛑 SL     ›  ${trade.sl}   (-${Math.abs(lossPct)}%)\n` +
+    `  🛑 SL     ›  ${trade.sl}   (-${lossPct}%)\n` +
     beLine +
-    `└─────────────────────────┘\n` +
-    `\n` +
+    `└─────────────────────────┘\n\n` +
     `📊 Risk / Reward\n` +
     `  💰 Risk    :  ${trade.riskPct}% of balance\n` +
-    `  📈 Reward  :  +${profitPct}%  (TP1)\n` +
+    `  📈 Reward  :  +${tp1Pct}%  (TP1)\n` +
     `  ⚖️  R : R   :  1 : ${rr}\n` +
     noteLine +
     `\n` +
@@ -227,7 +251,98 @@ function buildMessage(trade) {
   )
 }
 
-// ── SIGNAL GENERATOR ─────────────────────────────────────────
+// ── TP HIT MESSAGE ────────────────────────────────────
+function buildTPHitMessage(trade, tpIndex, hitPrice) {
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  const tag = coinTag(trade)
+  const tpNum = tpIndex + 1
+  const tpPrice = trade.tps[tpIndex]
+  const profitPct = Math.abs(calcProfitPct(trade, tpPrice)).toFixed(2)
+  const lossPct = Math.abs(calcLossPct(trade)).toFixed(2)
+  const rr = parseFloat(profitPct) / parseFloat(lossPct)
+  const rrLabel = getRRLabel(rr)
+  const rrEmoji = getRREmoji(rr)
+  const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
+  const isLast = tpIndex === trade.tps.length - 1
+  const moreTPs = !isLast
+    ? `\n⏳ Remaining TPs still active — hold or move SL to BE`
+    : ''
+
+  return (
+    `${rrEmoji} TP ${tpNum} HIT!\n` +
+    `╔══════════════════════════╗\n` +
+    `  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n` +
+    `╚══════════════════════════╝\n\n` +
+    `${medals[tpIndex]} TP ${tpNum} reached  ›  ${tpPrice}\n` +
+    `📍 Entry was  ›  ${trade.entry}\n\n` +
+    `┌─────────────────────────┐\n` +
+    `  📈 Profit   :  +${profitPct}%\n` +
+    `  ⚖️  R : R    :  ${rrLabel}  ${rrEmoji}\n` +
+    `  💰 Risk was :  ${trade.riskPct}% of balance\n` +
+    `└─────────────────────────┘\n` +
+    moreTPs +
+    `\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🪷 Patient  ·  🌸 Discipline\n` +
+    `💸 Master Analysts VIP (crypto) 🔐`
+  )
+}
+
+// ── FULL WIN/LOSS RESULT MESSAGE ──────────────────────
+function buildResultMessage(trade) {
+  const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
+  const tag = coinTag(trade)
+  const isWin = trade.status === 'WIN'
+  const profitPct = trade.profit?.toFixed(2) ?? '0'
+  const lossPct = Math.abs(calcLossPct(trade)).toFixed(2)
+  const rr = Math.abs(trade.profit) / Math.abs(parseFloat(lossPct))
+  const rrLabel = getRRLabel(rr)
+  const rrEmoji = getRREmoji(rr)
+
+  // TP summary
+  const tpMedals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
+  const tpSummary = trade.tps
+    .map((tp, i) => {
+      const hit = (trade.hitTPs || []).includes(i)
+      const pct = Math.abs(calcProfitPct(trade, tp)).toFixed(2)
+      return `  ${hit ? tpMedals[i] : '⬜'} TP ${i + 1}  ›  ${tp}  (+${pct}%)  ${hit ? '✔' : '—'}`
+    })
+    .join('\n')
+
+  const header = isWin ? `🏆 TRADE CLOSED — WIN!\n` : `🛑 TRADE CLOSED — LOSS\n`
+
+  const pnlLine = isWin
+    ? `  📈 Profit   :  +${profitPct}%`
+    : `  📉 Loss     :  ${profitPct}%`
+
+  const motivation = isWin
+    ? `🎉 Well done! Discipline pays off.`
+    : `💪 Losses are part of the game.\n   Protect capital. Next trade!`
+
+  return (
+    `${header}` +
+    `╔══════════════════════════╗\n` +
+    `  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n` +
+    `╚══════════════════════════╝\n\n` +
+    `📍 Entry    ›  ${trade.entry}\n` +
+    `🏁 Exit     ›  ${trade.exitPrice}\n\n` +
+    `📊 TP Results:\n` +
+    `${tpSummary}\n` +
+    `  🛑 SL      ›  ${trade.sl}\n\n` +
+    `┌─────────────────────────┐\n` +
+    `${pnlLine}\n` +
+    `  ⚖️  R : R   :  ${rrLabel}  ${rrEmoji}\n` +
+    `  💰 Risk was :  ${trade.riskPct}% of balance\n` +
+    `  🤖 Trigger  :  ${trade.autoTriggered ? 'Auto ⚡' : 'Manual 🖐'}\n` +
+    `└─────────────────────────┘\n\n` +
+    `${motivation}\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+    `🪷 Patient  ·  🌸 Discipline\n` +
+    `💸 Master Analysts VIP (crypto) 🔐`
+  )
+}
+
+// ── SIGNAL GENERATOR ─────────────────────────────────
 function executeSignal() {
   const coin = document.getElementById('coin').value.trim()
   const side = document.getElementById('side').value
@@ -266,19 +381,27 @@ function executeSignal() {
     profit: null,
     hitTPs: [],
     autoTriggered: false,
+    resultMessage: null,
   }
-
   trades.unshift(trade)
   saveTrades()
 
-  const message = buildMessage(trade)
+  showOutputMessage(buildOpenMessage(trade))
+  resetForm()
+  updateStats()
+  startPriceMonitor()
+  toast('✅ Signal saved & monitoring active!', 'success')
+}
+
+function showOutputMessage(msg) {
   const output = document.getElementById('output')
   const outputArea = document.getElementById('output-area')
-  output.value = message
+  output.value = msg
   outputArea.style.display = 'block'
   outputArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
 
-  // Reset form
+function resetForm() {
   ;['entry', 'sl', 'be', 'note'].forEach((id) => {
     const e = document.getElementById(id)
     if (e) e.value = ''
@@ -294,10 +417,6 @@ function executeSignal() {
     .querySelectorAll('.coin-pill')
     .forEach((p) => p.classList.remove('active'))
   document.getElementById('risk-preview').style.display = 'none'
-
-  updateStats()
-  startPriceMonitor()
-  toast('✅ Signal saved & price monitoring active!', 'success')
 }
 
 function copyOutput() {
@@ -313,7 +432,7 @@ function copyOutput() {
     })
 }
 
-// ── LIVE PRICE MONITOR ───────────────────────────────────────
+// ── PRICE MONITOR ─────────────────────────────────────
 function startPriceMonitor() {
   if (priceMonitorInterval) clearInterval(priceMonitorInterval)
   priceMonitorInterval = setInterval(checkOpenTrades, 10000)
@@ -322,14 +441,12 @@ function startPriceMonitor() {
 
 async function checkOpenTrades() {
   const openTrades = trades.filter((t) => t.status === 'OPEN')
-  if (openTrades.length === 0) return
-
+  if (!openTrades.length) return
   const symbols = [...new Set(openTrades.map((t) => toBinanceSym(t.coin)))]
-  if (symbols.length === 0) return
-
   try {
-    const url = `https://api.binance.com/api/v3/ticker/price?symbols=${JSON.stringify(symbols)}`
-    const data = await fetch(url).then((r) => r.json())
+    const data = await fetch(
+      `https://api.binance.com/api/v3/ticker/price?symbols=${JSON.stringify(symbols)}`,
+    ).then((r) => r.json())
 
     if (Array.isArray(data))
       data.forEach((d) => {
@@ -339,40 +456,43 @@ async function checkOpenTrades() {
 
     let changed = false
     openTrades.forEach((trade) => {
-      const sym = toBinanceSym(trade.coin)
-      const price = liveprices[sym]
+      const price = liveprices[toBinanceSym(trade.coin)]
       if (!price) return
 
       const isShort =
         trade.side.includes('Short') || trade.side.includes('Sell')
 
-      // SL check
+      // SL hit → auto LOSS
       if (isShort ? price >= trade.sl : price <= trade.sl) {
         autoCloseTrade(trade, 'LOSS', price)
         changed = true
         return
       }
 
-      // TP checks
+      // TP hits
       trade.tps.forEach((tp, i) => {
         if ((trade.hitTPs || []).includes(i)) return
         const hit = isShort ? price <= tp : price >= tp
-        if (hit) {
-          if (!trade.hitTPs) trade.hitTPs = []
-          trade.hitTPs.push(i)
-          toast(
-            `🎯 ${trade.coin} — TP${i + 1} hit @ ${price}!`,
-            'success',
-            5000,
-          )
-          if (trade.hitTPs.length === trade.tps.length) {
-            autoCloseTrade(trade, 'WIN', price)
-            changed = true
-          }
+        if (!hit) return
+        if (!trade.hitTPs) trade.hitTPs = []
+        trade.hitTPs.push(i)
+
+        // Generate & store TP hit message
+        const tpMsg = buildTPHitMessage(trade, i, price)
+        if (!trade.tpMessages) trade.tpMessages = {}
+        trade.tpMessages[i] = tpMsg
+        changed = true
+
+        // Show result popup in generator output panel
+        showOutputMessage(tpMsg)
+        toast(`🎯 ${trade.coin} TP${i + 1} hit @ ${price}!`, 'success', 6000)
+
+        // Last TP → close WIN
+        if (trade.hitTPs.length === trade.tps.length) {
+          autoCloseTrade(trade, 'WIN', price)
         }
       })
 
-      // Update live badge in UI
       updateLivePriceDisplay(trade.id, price)
     })
 
@@ -382,7 +502,7 @@ async function checkOpenTrades() {
       updateStats()
     }
   } catch (e) {
-    console.warn('Price monitor error:', e)
+    console.warn('Monitor error', e)
   }
 }
 
@@ -393,9 +513,19 @@ function autoCloseTrade(trade, status, exitPrice) {
   trade.exitDate = new Date().toISOString()
   trade.exitPrice = exitPrice
   trade.autoTriggered = true
-  trade.profit = isShort
-    ? parseFloat((((trade.entry - exitPrice) / trade.entry) * 100).toFixed(2))
-    : parseFloat((((exitPrice - trade.entry) / trade.entry) * 100).toFixed(2))
+  trade.profit =
+    parseFloat(
+      (isShort
+        ? (trade.entry - exitPrice) / trade.entry
+        : (exitPrice - trade.entry) / trade.entry) * 100,
+    ).toFixed(2) * 1
+
+  // Generate result message and store on trade
+  trade.resultMessage = buildResultMessage(trade)
+
+  // Show in output panel
+  showOutputMessage(trade.resultMessage)
+
   const icon = status === 'WIN' ? '✅' : '🛑'
   toast(
     `${icon} ${trade.coin} AUTO-${status} @ ${exitPrice}  (${trade.profit >= 0 ? '+' : ''}${trade.profit}%)`,
@@ -410,28 +540,34 @@ function updateLivePriceDisplay(id, price) {
     el.textContent = `● $${price.toLocaleString(undefined, { maximumFractionDigits: 6 })}`
 }
 
-function toBinanceSym(coin) {
-  return coin.replace('/', '').replace('.P', '').toUpperCase()
-}
-
-// ── MANUAL TRADE STATUS ──────────────────────────────────────
+// ── MANUAL CLOSE ─────────────────────────────────────
 function updateTradeStatus(id, status) {
   const trade = trades.find((t) => t.id === id)
   if (!trade || trade.status !== 'OPEN') return
+
   const exitDefault = status === 'WIN' ? trade.tp : trade.sl
   const rawExit = prompt(
     `Exit price for P&L (default: ${exitDefault}):`,
     exitDefault,
   )
   if (rawExit === null) return
+
   const exitPrice = parseFloat(rawExit) || exitDefault
   const isShort = trade.side.includes('Short') || trade.side.includes('Sell')
   trade.status = status
   trade.exitDate = new Date().toISOString()
   trade.exitPrice = exitPrice
-  trade.profit = isShort
-    ? parseFloat((((trade.entry - exitPrice) / trade.entry) * 100).toFixed(2))
-    : parseFloat((((exitPrice - trade.entry) / trade.entry) * 100).toFixed(2))
+  trade.autoTriggered = false
+  trade.profit =
+    parseFloat(
+      (isShort
+        ? (trade.entry - exitPrice) / trade.entry
+        : (exitPrice - trade.entry) / trade.entry) * 100,
+    ).toFixed(2) * 1
+
+  trade.resultMessage = buildResultMessage(trade)
+  showOutputMessage(trade.resultMessage)
+
   saveTrades()
   renderHistory()
   updateStats()
@@ -451,7 +587,56 @@ function saveTrades() {
   localStorage.setItem('ma_trades', JSON.stringify(trades))
 }
 
-// ── HISTORY RENDER ───────────────────────────────────────────
+// ── COPY RESULT FROM HISTORY ──────────────────────────
+function copyResultMessage(id) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return
+  const msg = trade.resultMessage || buildResultMessage(trade)
+  navigator.clipboard
+    .writeText(msg)
+    .then(() => toast('📋 Result message copied!', 'info'))
+    .catch(() => toast('❌ Copy failed', 'error'))
+}
+
+function copyOpenMessage(id) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return
+  const msg = buildOpenMessage(trade)
+  navigator.clipboard
+    .writeText(msg)
+    .then(() => toast('📋 Signal message copied!', 'info'))
+    .catch(() => toast('❌ Copy failed', 'error'))
+}
+
+function copyTPMessage(id, tpIndex) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return
+  const msg =
+    trade.tpMessages?.[tpIndex] ||
+    buildTPHitMessage(trade, tpIndex, trade.tps[tpIndex])
+  navigator.clipboard
+    .writeText(msg)
+    .then(() => toast(`📋 TP${tpIndex + 1} message copied!`, 'info'))
+    .catch(() => toast('❌ Copy failed', 'error'))
+}
+
+function previewMessage(id, type, tpIndex) {
+  const trade = trades.find((t) => t.id === id)
+  if (!trade) return
+  let msg = ''
+  if (type === 'open') msg = buildOpenMessage(trade)
+  if (type === 'tp')
+    msg =
+      trade.tpMessages?.[tpIndex] ||
+      buildTPHitMessage(trade, tpIndex, trade.tps[tpIndex])
+  if (type === 'result') msg = trade.resultMessage || buildResultMessage(trade)
+
+  // Show in output panel and switch to generator tab to see it
+  showOutputMessage(msg)
+  showSection('generator')
+}
+
+// ── HISTORY RENDER ────────────────────────────────────
 function renderHistory() {
   const log = document.getElementById('trade-log')
   if (!log) return
@@ -463,9 +648,9 @@ function renderHistory() {
   if (sub)
     sub.textContent = `${filtered.length} of ${trades.length} trade${trades.length !== 1 ? 's' : ''}`
 
-  if (filtered.length === 0) {
+  if (!filtered.length) {
     log.innerHTML = `<div class="empty-state"><span class="empty-icon">📭</span>
-      <p>${trades.length === 0 ? 'No trades yet. Generate your first signal!' : 'No trades match this filter.'}</p></div>`
+      <p>${!trades.length ? 'No trades yet. Generate your first signal!' : 'No trades match this filter.'}</p></div>`
     return
   }
 
@@ -485,42 +670,88 @@ function renderHistory() {
         OPEN: 'status-open',
       }[trade.status]
 
-      const tpList = (trade.tps || [trade.tp])
-        .map((tp, i) => {
-          const hit = (trade.hitTPs || []).includes(i)
-          return `<span class="${hit ? 'tp-hit' : ''}">${tp}</span>`
-        })
-        .join(' · ')
-
+      // Live badge for OPEN
       const liveBadge =
         trade.status === 'OPEN'
           ? `<span class="live-badge" id="live-${trade.id}">● Live</span>`
           : ''
-
       const autoBadge = trade.autoTriggered
         ? `<span class="badge badge-auto">⚡ AUTO</span>`
         : ''
 
-      const pnlHtml =
-        trade.profit !== null
-          ? `
-      <div class="trade-pnl">
-        <span class="pnl-val ${trade.profit >= 0 ? 'pos' : 'neg'}">${trade.profit >= 0 ? '+' : ''}${trade.profit}%</span>
-        <span class="pnl-close-info">Exit: ${trade.exitPrice} · ${new Date(trade.exitDate).toLocaleString()}</span>
-      </div>`
-          : ''
+      // TP status rows
+      const tpMedals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
+      const tpRows = (trade.tps || [trade.tp])
+        .map((tp, i) => {
+          const hit = (trade.hitTPs || []).includes(i)
+          const pct = Math.abs(calcProfitPct(trade, tp)).toFixed(2)
+          const lossPct = Math.abs(calcLossPct(trade))
+          const rr = (Math.abs(pct) / lossPct).toFixed(2)
+          const rrLabel = getRRLabel(parseFloat(rr))
 
-      const actionsHtml =
+          return `
+        <div class="tp-status-row ${hit ? 'hit' : ''}">
+          <span class="tp-status-medal">${hit ? tpMedals[i] : '⬜'}</span>
+          <span class="tp-status-label">TP ${i + 1}</span>
+          <span class="tp-status-price">${tp}</span>
+          <span class="tp-status-pct">+${pct}%</span>
+          <span class="tp-status-rr">${rrLabel}</span>
+          <span class="tp-status-state ${hit ? 'tp-hit-badge' : 'tp-open-badge'}">${hit ? '✔ HIT' : 'OPEN'}</span>
+          ${hit ? `<button class="msg-btn tp-msg-btn" onclick="copyTPMessage(${trade.id},${i})">📋 TP${i + 1} Msg</button>` : ''}
+        </div>`
+        })
+        .join('')
+
+      // P&L + R:R for closed trades
+      let pnlHtml = ''
+      if (trade.profit !== null) {
+        const lossPct = Math.abs(calcLossPct(trade))
+        const rr = Math.abs(trade.profit) / lossPct
+        const rrLabel = getRRLabel(rr)
+        const rrEmoji = getRREmoji(rr)
+        pnlHtml = `
+        <div class="trade-result-bar ${trade.status === 'WIN' ? 'win-bar' : 'loss-bar'}">
+          <div class="result-main">
+            <span class="pnl-val ${trade.profit >= 0 ? 'pos' : 'neg'}">${trade.profit >= 0 ? '+' : ''}${trade.profit}%</span>
+            <span class="rr-pill">${rrEmoji} ${rrLabel}</span>
+            ${trade.autoTriggered ? '<span class="auto-pill">⚡ AUTO</span>' : ''}
+          </div>
+          <div class="result-sub">
+            Exit: <strong>${trade.exitPrice}</strong>
+            &nbsp;·&nbsp; ${new Date(trade.exitDate).toLocaleString()}
+          </div>
+        </div>`
+      }
+
+      // Action buttons
+      const actionBtns =
         trade.status === 'OPEN'
           ? `
       <div class="trade-actions">
         <button class="trade-btn win"  onclick="updateTradeStatus(${trade.id},'WIN')">✓ WIN</button>
         <button class="trade-btn loss" onclick="updateTradeStatus(${trade.id},'LOSS')">✗ LOSS</button>
-        <button class="trade-btn del"  onclick="deleteTrade(${trade.id})">Delete</button>
+        <button class="trade-btn del"  onclick="deleteTrade(${trade.id})">🗑</button>
       </div>`
           : `
       <div class="trade-actions">
-        <button class="trade-btn del" onclick="deleteTrade(${trade.id})">Delete</button>
+        <button class="trade-btn del" onclick="deleteTrade(${trade.id})">🗑 Delete</button>
+      </div>`
+
+      // Message buttons panel
+      const msgPanel = `
+      <div class="msg-panel">
+        <span class="msg-panel-label">📤 Telegram Messages</span>
+        <div class="msg-btn-row">
+          <button class="msg-btn signal-btn" onclick="copyOpenMessage(${trade.id})">📋 Signal</button>
+          ${(trade.hitTPs || [])
+            .map(
+              (i) =>
+                `<button class="msg-btn tp-msg-btn" onclick="copyTPMessage(${trade.id},${i})">📋 TP${i + 1}</button>`,
+            )
+            .join('')}
+          ${trade.status !== 'OPEN' ? `<button class="msg-btn result-btn" onclick="copyResultMessage(${trade.id})">📋 Result</button>` : ''}
+          <button class="msg-btn preview-btn" onclick="previewMessage(${trade.id},'${trade.status !== 'OPEN' ? 'result' : 'open'}')">👁 Preview</button>
+        </div>
       </div>`
 
       return `
@@ -537,21 +768,32 @@ function renderHistory() {
           </div>
           <div class="trade-date">${new Date(trade.date).toLocaleString()}</div>
         </div>
+
         <div class="trade-prices">
           <div class="price-item"><span class="price-label">Entry</span><span class="price-val">${trade.entry}</span></div>
-          <div class="price-item"><span class="price-label">TPs</span><span class="price-val tp-list">${tpList}</span></div>
-          <div class="price-item"><span class="price-label">SL</span><span class="price-val">${trade.sl}</span></div>
+          <div class="price-item"><span class="price-label">SL</span><span class="price-val sl-val">${trade.sl}</span></div>
           <div class="price-item"><span class="price-label">BE</span><span class="price-val">${trade.be}</span></div>
+          <div class="price-item"><span class="price-label">Risk</span><span class="price-val">${trade.riskPct}%</span></div>
         </div>
-        ${trade.note ? `<div class="trade-note">📝 ${trade.note}</div>` : ''}
-        ${actionsHtml}
+
+        <div class="tp-status-section">
+          <div class="tp-status-header">
+            <span>Target Profits</span>
+            <span>${(trade.hitTPs || []).length} / ${(trade.tps || [trade.tp]).length} hit</span>
+          </div>
+          ${tpRows}
+        </div>
+
+        ${trade.note ? `<div class="trade-note">💬 ${trade.note}</div>` : ''}
         ${pnlHtml}
+        ${actionBtns}
+        ${msgPanel}
       </div>`
     })
     .join('')
 }
 
-// ── STATISTICS ───────────────────────────────────────────────
+// ── STATISTICS ────────────────────────────────────────
 function updateStats() {
   const closed = trades.filter((t) => t.status !== 'OPEN')
   const wins = closed.filter((t) => t.status === 'WIN').length
@@ -652,7 +894,7 @@ function updateMonthlyChart() {
   })
 }
 
-// ── EXPORT / IMPORT ──────────────────────────────────────────
+// ── EXPORT / IMPORT ───────────────────────────────────
 function exportAllData() {
   dlBlob(
     new Blob([JSON.stringify(trades, null, 2)], { type: 'application/json' }),
@@ -697,23 +939,29 @@ function downloadCSV() {
     'Status',
     'Exit',
     'P&L%',
+    'R:R',
     'Note',
   ]
-  const rows = trades.map((t) => [
-    t.id,
-    new Date(t.date).toLocaleString(),
-    t.coin,
-    t.side,
-    t.entry,
-    (t.tps || [t.tp]).join('|'),
-    t.sl,
-    t.be,
-    t.leverage || '',
-    t.status,
-    t.exitPrice || '',
-    t.profit ?? '',
-    t.note || '',
-  ])
+  const rows = trades.map((t) => {
+    const lossPct = Math.abs(calcLossPct(t))
+    const rr = t.profit != null ? getRRLabel(Math.abs(t.profit) / lossPct) : ''
+    return [
+      t.id,
+      new Date(t.date).toLocaleString(),
+      t.coin,
+      t.side,
+      t.entry,
+      (t.tps || [t.tp]).join('|'),
+      t.sl,
+      t.be,
+      t.leverage || '',
+      t.status,
+      t.exitPrice || '',
+      t.profit ?? '',
+      rr,
+      t.note || '',
+    ]
+  })
   const csv = [h, ...rows]
     .map((r) => r.map((c) => `"${c}"`).join(','))
     .join('\n')
@@ -733,7 +981,6 @@ function dlBlob(blob, name) {
 function today() {
   return new Date().toISOString().split('T')[0]
 }
-
 function clearAllData() {
   if (!confirm('⚠️ Delete ALL trade history permanently?')) return
   if (prompt('Type "DELETE" to confirm:') !== 'DELETE') {
@@ -749,7 +996,7 @@ function clearAllData() {
   toast('🗑 Database wiped', 'info')
 }
 
-// ── MARKET TICKER ─────────────────────────────────────────────
+// ── MARKET TICKER ─────────────────────────────────────
 async function fetchMarketData() {
   try {
     const data = await fetch(
@@ -782,7 +1029,7 @@ async function fetchMarketData() {
   }
 }
 
-// ── COIN SUGGESTIONS ─────────────────────────────────────────
+// ── COIN SUGGESTIONS ──────────────────────────────────
 function loadCoinSuggestions() {
   const dl = document.getElementById('coin-suggestions')
   if (dl) dl.innerHTML = COINS.map((c) => `<option value="${c}">`).join('')
@@ -800,7 +1047,7 @@ function filterQuickSearch() {
   })
 }
 
-// ── CLOCKS ───────────────────────────────────────────────────
+// ── CLOCKS ────────────────────────────────────────────
 function updateClocks() {
   const now = new Date()
   const fmt = (tz) =>
@@ -820,13 +1067,12 @@ function updateClocks() {
   set('time-sl', fmt('Asia/Colombo'))
 }
 
-// ── KZ TRACKER ───────────────────────────────────────────────
+// ── KZ TRACKER ────────────────────────────────────────
 function initKZTracker() {
   if (kzInterval) clearInterval(kzInterval)
   updateKZTracker()
   kzInterval = setInterval(updateKZTracker, 1000)
 }
-
 const KZ_SESSIONS = [
   {
     name: 'LONDON KZ',
@@ -861,7 +1107,6 @@ const KZ_SESSIONS = [
     desc: 'Asian breakouts · JPY pairs',
   },
 ]
-
 function updateKZTracker() {
   const now = new Date()
   const london = new Date(
@@ -881,12 +1126,11 @@ function updateKZTracker() {
     }
   }
   const tracker = document.getElementById('kz-tracker')
-  const nameEl = document.getElementById('active-kz-name')
-  const pctEl = document.getElementById('kz-percent')
-  const barEl = document.getElementById('kz-bar')
-  const msgEl = document.getElementById('kz-message')
-  const cdEl = document.getElementById('kz-countdown')
-
+  const nameEl = document.getElementById('active-kz-name'),
+    pctEl = document.getElementById('kz-percent')
+  const barEl = document.getElementById('kz-bar'),
+    msgEl = document.getElementById('kz-message'),
+    cdEl = document.getElementById('kz-countdown')
   if (active) {
     const { sess, pct, remaining } = active
     tracker?.classList.add('active')
@@ -909,11 +1153,11 @@ function updateKZTracker() {
         next = s
       }
     }
-    const waitSecs = minWait * 3600
-    const pct = Math.max(
-      0,
-      Math.min(100, ((24 * 3600 - waitSecs) / (24 * 3600)) * 100),
-    )
+    const waitSecs = minWait * 3600,
+      pct = Math.max(
+        0,
+        Math.min(100, ((24 * 3600 - waitSecs) / (24 * 3600)) * 100),
+      )
     if (nameEl) nameEl.textContent = `⏰ Next: ${next?.name || '—'}`
     if (pctEl) pctEl.textContent = `${Math.round(pct)}%`
     if (barEl) {
@@ -925,7 +1169,6 @@ function updateKZTracker() {
       cdEl.textContent = next ? `Starts in ${fmtCountdown(waitSecs)}` : ''
   }
 }
-
 function fmtCountdown(secs) {
   const h = Math.floor(secs / 3600),
     m = Math.floor((secs % 3600) / 60),
