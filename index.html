@@ -6,35 +6,94 @@
     <title>Master Analyst VIP | Pro Terminal</title>
     <link rel="stylesheet" href="style.css" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <!-- Ticker -->
+    <!-- LIVE TICKER -->
     <div class="top-ticker">
       <div id="binance-ticker" class="ticker-content">
-        ⟳ Connecting to market data...
+        ⟳ Connecting to live market data...
       </div>
     </div>
 
     <div class="app-layout">
-      <!-- Sidebar -->
+      <!-- ══ SIDEBAR ══ -->
       <aside class="sidebar">
         <div class="brand">
-          <span class="brand-ma">MASTER</span>
-          <span class="brand-vip">ANALYST <em>VIP</em></span>
+          <div class="brand-logo">🀄</div>
+          <div class="brand-text">
+            <span class="brand-top">MASTER ANALYST</span>
+            <span class="brand-vip"
+              >VIP <span class="brand-tag">PRO</span></span
+            >
+          </div>
         </div>
 
+        <!-- Kill Zone Tracker -->
+        <div class="kz-tracker" id="kz-tracker">
+          <div class="kz-top-row">
+            <span class="kz-dot" id="kz-dot"></span>
+            <span id="active-kz-name" class="kz-name">⌛ Loading...</span>
+            <span id="kz-percent" class="kz-pct">0%</span>
+          </div>
+          <div class="progress-bg">
+            <div id="kz-bar" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <div id="kz-message" class="kz-message"></div>
+          <div id="kz-countdown" class="kz-countdown"></div>
+        </div>
+
+        <!-- Session Schedule -->
+        <div class="kz-schedule">
+          <div class="kz-sch-title">
+            Kill Zone Schedule <span class="kz-sch-note">(UTC)</span>
+          </div>
+          <div class="kz-sch-row" id="sch-asia">
+            <span class="kz-sch-icon">🌏</span>
+            <div class="kz-sch-info">
+              <span class="kz-sch-name">Asia KZ</span>
+              <span class="kz-sch-time">01:00 – 03:00 UTC</span>
+            </div>
+            <span class="kz-sch-local" id="sch-asia-local"></span>
+          </div>
+          <div class="kz-sch-row" id="sch-london">
+            <span class="kz-sch-icon">🔥</span>
+            <div class="kz-sch-info">
+              <span class="kz-sch-name">London KZ</span>
+              <span class="kz-sch-time">07:00 – 10:00 UTC</span>
+            </div>
+            <span class="kz-sch-local" id="sch-london-local"></span>
+          </div>
+          <div class="kz-sch-row" id="sch-ny">
+            <span class="kz-sch-icon">⚡</span>
+            <div class="kz-sch-info">
+              <span class="kz-sch-name">New York KZ</span>
+              <span class="kz-sch-time">12:00 – 15:00 UTC</span>
+            </div>
+            <span class="kz-sch-local" id="sch-ny-local"></span>
+          </div>
+          <div class="kz-sch-row" id="sch-close">
+            <span class="kz-sch-icon">🎯</span>
+            <div class="kz-sch-info">
+              <span class="kz-sch-name">London Close</span>
+              <span class="kz-sch-time">15:00 – 17:00 UTC</span>
+            </div>
+            <span class="kz-sch-local" id="sch-close-local"></span>
+          </div>
+        </div>
+
+        <!-- Clocks -->
         <div class="clock-section">
-          <div class="clock-card">
+          <div class="clock-card" id="clock-ny">
             <span class="clock-flag">🇺🇸</span>
             <div class="clock-info">
               <span class="clock-label">NEW YORK</span>
               <span id="time-ny" class="time-val">--:--:--</span>
             </div>
           </div>
-          <div class="clock-card">
+          <div class="clock-card" id="clock-london">
             <span class="clock-flag">🇬🇧</span>
             <div class="clock-info">
               <span class="clock-label">LONDON</span>
@@ -50,19 +109,7 @@
           </div>
         </div>
 
-        <!-- KZ Tracker -->
-        <div class="kz-tracker" id="kz-tracker">
-          <div class="kz-header">
-            <span id="active-kz-name">⌛ Loading...</span>
-            <span id="kz-percent" class="kz-pct">0%</span>
-          </div>
-          <div class="progress-bg">
-            <div id="kz-bar" class="progress-fill" style="width: 0%"></div>
-          </div>
-          <div id="kz-message" class="kz-message"></div>
-          <div id="kz-countdown" class="kz-countdown"></div>
-        </div>
-
+        <!-- Nav -->
         <nav class="side-nav">
           <button
             onclick="showSection('generator')"
@@ -77,6 +124,9 @@
             id="nav-history"
           >
             <span class="nav-icon">≡</span> Trade History
+            <span class="nav-badge" id="open-count" style="display: none"
+              >0</span
+            >
           </button>
           <button
             onclick="showSection('stats')"
@@ -88,33 +138,37 @@
         </nav>
 
         <div class="sidebar-footer">
-          <span class="sidebar-version">v3.1.0</span>
-          <span class="sidebar-dot"></span>
-          <span class="sidebar-status" id="sidebar-status">LIVE</span>
+          <span class="sf-item">v6.0</span>
+          <span class="sf-sep">·</span>
+          <span class="sf-item" id="sidebar-status">LIVE</span>
+          <span class="sf-sep">·</span>
+          <span class="sf-item monitor-badge" id="monitor-status"
+            >● Monitor</span
+          >
         </div>
       </aside>
 
-      <!-- Main -->
+      <!-- ══ MAIN ══ -->
       <main class="main-content">
-        <!-- SIGNAL GENERATOR -->
+        <!-- ─ SIGNAL GENERATOR ─ -->
         <section id="generator" class="app-section">
           <div class="section-header">
             <div>
               <h2 class="section-title">New Signal</h2>
-              <p class="section-sub">Create & publish a trading signal</p>
+              <p class="section-sub">Create &amp; publish a trading signal</p>
             </div>
             <div class="search-container">
               <span class="search-icon">⌕</span>
               <input
                 type="text"
                 id="search-coin"
-                placeholder="Search coins..."
+                placeholder="Search coins…"
                 oninput="filterQuickSearch()"
               />
             </div>
           </div>
 
-          <div class="quick-coins" id="quick-coins">
+          <div class="quick-coins">
             <button class="coin-pill" onclick="setQuickCoin('BTC/USDT.P')">
               BTC
             </button>
@@ -139,150 +193,172 @@
             <button class="coin-pill" onclick="setQuickCoin('AVAX/USDT.P')">
               AVAX
             </button>
+            <button class="coin-pill" onclick="setQuickCoin('LINK/USDT.P')">
+              LINK
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('DOT/USDT.P')">
+              DOT
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('NEAR/USDT.P')">
+              NEAR
+            </button>
+            <button class="coin-pill" onclick="setQuickCoin('ARB/USDT.P')">
+              ARB
+            </button>
           </div>
 
-          <div class="input-grid">
-            <div class="input-group span-2">
-              <label>Asset</label>
-              <input
-                type="text"
-                id="coin"
-                placeholder="e.g. DOGE/USDT.P"
-                list="coin-suggestions"
-                autocomplete="off"
-              />
-              <datalist id="coin-suggestions"></datalist>
+          <div class="form-card">
+            <div class="form-row-3">
+              <div class="input-group span-2">
+                <label>Asset</label>
+                <input
+                  type="text"
+                  id="coin"
+                  placeholder="e.g. BTC/USDT.P"
+                  list="coin-suggestions"
+                  autocomplete="off"
+                />
+                <datalist id="coin-suggestions"></datalist>
+              </div>
+              <div class="input-group">
+                <label>Order Type</label>
+                <select id="order-type">
+                  <option value="Limit Order">⌛ Limit Order</option>
+                  <option value="Market Order">⚡ Market Order</option>
+                </select>
+              </div>
             </div>
-            <div class="input-group">
-              <label>Order Type</label>
-              <select id="order-type">
-                <option value="Limit Order">⌛ Limit Order</option>
-                <option value="Market Order">⚡ Market Order</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label>Direction</label>
-              <select id="side">
-                <option value="Buy/Long">Buy/Long ⬆️</option>
-                <option value="Sell/Short">Sell/Short ⬇️</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label>Leverage</label>
-              <input type="text" id="leverage" placeholder="e.g. 10x or Max" />
-            </div>
-            <div class="input-group">
-              <label>Entry Price</label>
-              <input
-                type="number"
-                id="entry"
-                placeholder="0.00000"
-                step="any"
-                oninput="calcRisk()"
-              />
-            </div>
-            <div class="input-group">
-              <label>Stop Loss 🛑</label>
-              <input
-                type="number"
-                id="sl"
-                placeholder="0.00000"
-                step="any"
-                oninput="calcRisk()"
-              />
-            </div>
-            <div class="input-group">
-              <label>Risk % <span class="optional-tag">of balance</span></label>
-              <input
-                type="number"
-                id="risk-pct"
-                placeholder="e.g. 1"
-                step="any"
-                value="1"
-              />
-            </div>
-            <div class="input-group">
-              <label
-                >Break Even <span class="optional-tag">optional</span></label
-              >
-              <input type="number" id="be" placeholder="0.00000" step="any" />
-            </div>
-          </div>
-
-          <!-- Multi-TP -->
-          <div class="tp-section">
-            <div class="tp-section-header">
-              <label>🟢 Take Profit Targets</label>
-              <button class="btn-add-tp" onclick="addTP()">+ Add TP</button>
-            </div>
-            <div id="tp-inputs" class="tp-inputs">
-              <div class="tp-row" id="tp-row-1">
-                <span class="tp-label">TP 1</span>
+            <div class="form-row-3">
+              <div class="input-group">
+                <label>Direction</label>
+                <select id="side">
+                  <option value="Buy/Long">Buy / Long ⬆️</option>
+                  <option value="Sell/Short">Sell / Short ⬇️</option>
+                </select>
+              </div>
+              <div class="input-group">
+                <label>Leverage</label>
+                <input
+                  type="text"
+                  id="leverage"
+                  placeholder="e.g. 10x or Max"
+                />
+              </div>
+              <div class="input-group">
+                <label>Risk % <span class="opt-tag">of balance</span></label>
                 <input
                   type="number"
-                  id="tp1"
+                  id="risk-pct"
+                  placeholder="1"
+                  step="any"
+                  value="1"
+                />
+              </div>
+            </div>
+            <div class="form-row-3">
+              <div class="input-group">
+                <label>Entry Price</label>
+                <input
+                  type="number"
+                  id="entry"
                   placeholder="0.00000"
                   step="any"
                   oninput="calcRisk()"
                 />
-                <button class="tp-remove" style="display: none">✕</button>
               </div>
-              <div class="tp-row" id="tp-row-2">
-                <span class="tp-label">TP 2</span>
+              <div class="input-group">
+                <label>Stop Loss 🛑</label>
                 <input
                   type="number"
-                  id="tp2"
+                  id="sl"
                   placeholder="0.00000"
                   step="any"
+                  oninput="calcRisk()"
                 />
-                <button class="tp-remove" onclick="removeTP(2)">✕</button>
+              </div>
+              <div class="input-group">
+                <label>Break Even <span class="opt-tag">optional</span></label>
+                <input type="number" id="be" placeholder="0.00000" step="any" />
               </div>
             </div>
-          </div>
 
-          <div class="input-grid" style="margin-top: 14px">
-            <div class="input-group span-3">
-              <label>Note <span class="optional-tag">optional</span></label>
+            <!-- Take Profits -->
+            <div class="tp-block">
+              <div class="tp-block-header">
+                <span class="tp-block-title">🎯 Take Profit Targets</span>
+                <button class="btn-add-tp" onclick="addTP()">＋ Add TP</button>
+              </div>
+              <div id="tp-inputs" class="tp-inputs">
+                <div class="tp-row" id="tp-row-1">
+                  <span class="tp-label">TP 1</span>
+                  <input
+                    type="number"
+                    id="tp1"
+                    placeholder="0.00000"
+                    step="any"
+                    oninput="calcRisk()"
+                  />
+                  <button class="tp-remove" style="visibility: hidden">
+                    ✕
+                  </button>
+                </div>
+                <div class="tp-row" id="tp-row-2">
+                  <span class="tp-label">TP 2</span>
+                  <input
+                    type="number"
+                    id="tp2"
+                    placeholder="0.00000"
+                    step="any"
+                  />
+                  <button class="tp-remove" onclick="removeTP(2)">✕</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="input-group" style="margin-top: 4px">
+              <label>Note <span class="opt-tag">optional</span></label>
               <input
                 type="text"
                 id="note"
-                placeholder="Additional signal notes..."
+                placeholder="Any additional notes for this signal…"
               />
             </div>
           </div>
 
-          <!-- Risk Preview -->
+          <!-- Live R:R Preview -->
           <div class="risk-preview" id="risk-preview" style="display: none">
             <div class="risk-item">
-              <span class="risk-label">RISK/REWARD</span>
-              <span class="risk-val" id="rr-ratio">—</span>
+              <span class="risk-label">R : R</span>
+              <span class="risk-val accent" id="rr-ratio">—</span>
             </div>
             <div class="risk-item">
-              <span class="risk-label">PROFIT %</span>
+              <span class="risk-label">REWARD</span>
               <span class="risk-val green" id="profit-pct">—</span>
             </div>
             <div class="risk-item">
-              <span class="risk-label">LOSS %</span>
+              <span class="risk-label">RISK</span>
               <span class="risk-val red" id="loss-pct">—</span>
             </div>
           </div>
 
           <button class="btn-primary" onclick="executeSignal()">
-            <span>◈</span> GENERATE &amp; SAVE SIGNAL
+            ◈ &nbsp;GENERATE &amp; SAVE SIGNAL
           </button>
 
           <div class="output-area" id="output-area" style="display: none">
             <div class="output-header">
-              <span>Telegram Output</span>
+              <span id="output-label" class="output-label"
+                >📤 Ready to Copy</span
+              >
               <button class="btn-copy-inline" onclick="copyOutput()">
                 📋 Copy
               </button>
             </div>
-            <textarea id="output" readonly></textarea>
+            <textarea id="output" readonly spellcheck="false"></textarea>
           </div>
         </section>
 
-        <!-- TRADE HISTORY -->
+        <!-- ─ TRADE HISTORY ─ -->
         <section id="history" class="app-section" style="display: none">
           <div class="section-header">
             <div>
@@ -297,10 +373,10 @@
                 onchange="renderHistory()"
                 class="filter-select"
               >
-                <option value="ALL">All Status</option>
-                <option value="OPEN">Open</option>
-                <option value="WIN">Win</option>
-                <option value="LOSS">Loss</option>
+                <option value="ALL">All Trades</option>
+                <option value="OPEN">🟡 Open</option>
+                <option value="WIN">🟢 Win</option>
+                <option value="LOSS">🔴 Loss</option>
               </select>
               <button class="mini-btn" onclick="exportAllData()">
                 💾 Export
@@ -316,7 +392,7 @@
           <div id="trade-log" class="trade-log"></div>
         </section>
 
-        <!-- STATS -->
+        <!-- ─ ANALYTICS ─ -->
         <section id="stats" class="app-section" style="display: none">
           <div class="section-header">
             <div>
@@ -324,48 +400,45 @@
               <p class="section-sub">Performance overview</p>
             </div>
           </div>
-
           <div class="stats-grid">
             <div class="stat-box">
-              <span class="stat-icon">◈</span>
-              <span class="stat-label">TOTAL SIGNALS</span>
-              <span id="stat-total" class="stat-value">0</span>
+              <span class="stat-icon">◈</span
+              ><span class="stat-label">TOTAL SIGNALS</span
+              ><span id="stat-total" class="stat-value">0</span>
             </div>
             <div class="stat-box">
-              <span class="stat-icon">≡</span>
-              <span class="stat-label">CLOSED TRADES</span>
-              <span id="stat-closed" class="stat-value">0</span>
+              <span class="stat-icon win-c">✓</span
+              ><span class="stat-label">WIN RATE</span>
+              <span id="stat-winrate" class="stat-value win-c">0%</span>
             </div>
             <div class="stat-box">
-              <span class="stat-icon green-icon">✓</span>
-              <span class="stat-label">WIN RATE</span>
-              <span id="stat-winrate" class="stat-value win-color">0%</span>
-            </div>
-            <div class="stat-box">
-              <span class="stat-icon">◎</span>
-              <span class="stat-label">PROFIT FACTOR</span>
+              <span class="stat-icon">◎</span
+              ><span class="stat-label">PROFIT FACTOR</span>
               <span id="stat-profit-factor" class="stat-value">0</span>
             </div>
             <div class="stat-box">
-              <span class="stat-icon green-icon">↑</span>
-              <span class="stat-label">TOTAL P&amp;L</span>
-              <span id="stat-total-pnl" class="stat-value">0%</span>
+              <span class="stat-icon win-c">↑</span
+              ><span class="stat-label">TOTAL P&amp;L</span
+              ><span id="stat-total-pnl" class="stat-value">0%</span>
             </div>
             <div class="stat-box">
-              <span class="stat-icon">⟳</span>
-              <span class="stat-label">OPEN TRADES</span>
+              <span class="stat-icon acc-c">⟳</span
+              ><span class="stat-label">OPEN TRADES</span>
               <span id="stat-open" class="stat-value">0</span>
             </div>
+            <div class="stat-box">
+              <span class="stat-icon">≡</span
+              ><span class="stat-label">CLOSED TRADES</span>
+              <span id="stat-closed" class="stat-value">0</span>
+            </div>
           </div>
-
           <div class="chart-section">
-            <h3 class="chart-title">Monthly Performance</h3>
+            <div class="chart-title">Monthly Performance</div>
             <canvas
               id="monthly-chart"
               style="max-height: 300px; width: 100%"
             ></canvas>
           </div>
-
           <div class="danger-zone">
             <button class="danger-link" onclick="clearAllData()">
               ⚠ Wipe Local Database
@@ -375,7 +448,7 @@
       </main>
     </div>
 
-    <!-- Message Preview Popup -->
+    <!-- ══ MESSAGE POPUP ══ -->
     <div
       id="popup-overlay"
       class="popup-overlay"
@@ -390,9 +463,7 @@
           <pre id="popup-body" class="popup-body"></pre>
         </div>
         <div class="popup-footer">
-          <span class="popup-hint"
-            >Review the message below before posting to Telegram</span
-          >
+          <span class="popup-hint">Review before posting to Telegram</span>
           <button
             id="popup-copy-btn"
             class="popup-copy-btn"
@@ -404,7 +475,7 @@
       </div>
     </div>
 
-    <!-- Toast -->
+    <!-- TOAST -->
     <div id="toast" class="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
