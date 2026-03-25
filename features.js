@@ -36,11 +36,13 @@ function saveTrailing() {
 
 // Called when user enables trailing SL for a trade
 function enableTrailingSL(tradeId) {
-  const trade = trades.find(t => t.id === tradeId)
+  const trade = trades.find((t) => t.id === tradeId)
   if (!trade || trade.status !== 'OPEN') return
 
   const mode = document.getElementById(`trail-mode-${tradeId}`)?.value || 'pct'
-  const val = parseFloat(document.getElementById(`trail-val-${tradeId}`)?.value || '')
+  const val = parseFloat(
+    document.getElementById(`trail-val-${tradeId}`)?.value || '',
+  )
 
   if (!Number.isFinite(val) || val <= 0) {
     toast('❌ Enter a valid trailing value', 'error')
@@ -62,7 +64,10 @@ function enableTrailingSL(tradeId) {
 
   saveTrailing()
   renderTrailingSLBadge(tradeId)
-  toast(`✅ Trailing SL activated — ${mode === 'pct' ? val + '%' : val + ' pts'} trail`, 'success')
+  toast(
+    `✅ Trailing SL activated — ${mode === 'pct' ? val + '%' : val + ' pts'} trail`,
+    'success',
+  )
 }
 
 function disableTrailingSL(tradeId) {
@@ -79,20 +84,18 @@ function calculateTrailingSL(trade, currentPrice, peakPrice, mode, value) {
     // Trail by % distance from peak
     const mult = value / 100
     return short
-      ? _fmt(peakPrice * (1 + mult))   // short: SL above peak (best = lowest)
-      : _fmt(peakPrice * (1 - mult))   // long:  SL below peak (best = highest)
+      ? _fmt(peakPrice * (1 + mult)) // short: SL above peak (best = lowest)
+      : _fmt(peakPrice * (1 - mult)) // long:  SL below peak (best = highest)
   } else {
     // Trail by fixed price points
-    return short
-      ? _fmt(peakPrice + value)
-      : _fmt(peakPrice - value)
+    return short ? _fmt(peakPrice + value) : _fmt(peakPrice - value)
   }
 }
 
 // Called every price-monitor tick to update trailing SL
 function updateTrailingSLs(openTrades) {
   let changed = false
-  openTrades.forEach(trade => {
+  openTrades.forEach((trade) => {
     const td = trailingData[trade.id]
     if (!td || !td.enabled) return
 
@@ -109,7 +112,13 @@ function updateTrailingSLs(openTrades) {
     }
 
     if (updated) {
-      const newSL = calculateTrailingSL(trade, price, td.peakPrice, td.mode, td.value)
+      const newSL = calculateTrailingSL(
+        trade,
+        price,
+        td.peakPrice,
+        td.mode,
+        td.value,
+      )
       // Only move SL in profit direction, never backwards
       const slImproved = short ? newSL < td.currentSL : newSL > td.currentSL
       if (slImproved) {
@@ -122,7 +131,11 @@ function updateTrailingSLs(openTrades) {
     // Check if trailing SL got hit
     const slHit = short ? price >= td.currentSL : price <= td.currentSL
     if (slHit) {
-      toast(`🔔 Trailing SL hit for ${trade.coin} @ ${price.toLocaleString()}!`, 'error', 7000)
+      toast(
+        `🔔 Trailing SL hit for ${trade.coin} @ ${price.toLocaleString()}!`,
+        'error',
+        7000,
+      )
       // Don't auto-close here — surface only; trader decides
     }
   })
@@ -158,8 +171,18 @@ function buildTrailingSLPanel(tradeId) {
     <div class="trail-header">
       <span class="trail-title">⟳ Trailing Stop Loss</span>
     </div>
-    <div id="trail-badge-${tradeId}">${hasTrail ? (() => { renderTrailingSLBadge(tradeId); return '' })() : ''}</div>
-    ${hasTrail ? '' : `
+    <div id="trail-badge-${tradeId}">${
+      hasTrail
+        ? (() => {
+            renderTrailingSLBadge(tradeId)
+            return ''
+          })()
+        : ''
+    }</div>
+    ${
+      hasTrail
+        ? ''
+        : `
     <div class="trail-setup">
       <select id="trail-mode-${tradeId}" class="trail-select">
         <option value="pct">% Distance</option>
@@ -167,10 +190,10 @@ function buildTrailingSLPanel(tradeId) {
       </select>
       <input id="trail-val-${tradeId}" type="number" step="any" placeholder="e.g. 1.5" class="trail-input"/>
       <button class="trail-enable-btn" onclick="enableTrailingSL(${tradeId})">Activate</button>
-    </div>`}
+    </div>`
+    }
   </div>`
 }
-
 
 // ════════════════════════════════════════════════════════════
 //  FEATURE 2 — PARTIAL TP CLOSE CALCULATOR
@@ -188,16 +211,20 @@ function savePartial() {
 }
 
 function openPartialModal(tradeId) {
-  const trade = trades.find(t => t.id === tradeId)
+  const trade = trades.find((t) => t.id === tradeId)
   if (!trade) return
 
-  const existing = partialData[tradeId] || { allocations: trade.tps.map(() => Math.floor(100 / trade.tps.length)), posSize: 100 }
+  const existing = partialData[tradeId] || {
+    allocations: trade.tps.map(() => Math.floor(100 / trade.tps.length)),
+    posSize: 100,
+  }
   partialData[tradeId] = existing
 
-  const tpRows = trade.tps.map((tp, i) => {
-    const profPct = _fmtStr(Math.abs(calcProfitPct(trade, tp)))
-    const alloc = existing.allocations[i] || 0
-    return `
+  const tpRows = trade.tps
+    .map((tp, i) => {
+      const profPct = _fmtStr(Math.abs(calcProfitPct(trade, tp)))
+      const alloc = existing.allocations[i] || 0
+      return `
     <div class="partial-row">
       <span class="partial-tp-label">TP ${i + 1} — ${tp} (+${profPct}%)</span>
       <div class="partial-input-wrap">
@@ -206,10 +233,12 @@ function openPartialModal(tradeId) {
         <span class="partial-pct">%</span>
       </div>
     </div>`
-  }).join('')
+    })
+    .join('')
 
   const modal = document.getElementById('partial-modal')
-  document.getElementById('partial-modal-title').textContent = `Partial Close — ${trade.coin}`
+  document.getElementById('partial-modal-title').textContent =
+    `Partial Close — ${trade.coin}`
   document.getElementById('partial-modal-body').innerHTML = `
     <div class="partial-pos-row">
       <label class="partial-pos-label">Position Size ($)</label>
@@ -233,11 +262,17 @@ function closePartialModal() {
 }
 
 function updatePartialSummary(tradeId) {
-  const trade = trades.find(t => t.id === tradeId)
+  const trade = trades.find((t) => t.id === tradeId)
   if (!trade) return
 
-  const posSize = parseFloat(document.getElementById(`partial-pos-${tradeId}`)?.value || '100')
-  const allocs = trade.tps.map((_, i) => parseFloat(document.getElementById(`partial-alloc-${tradeId}-${i}`)?.value || '0'))
+  const posSize = parseFloat(
+    document.getElementById(`partial-pos-${tradeId}`)?.value || '100',
+  )
+  const allocs = trade.tps.map((_, i) =>
+    parseFloat(
+      document.getElementById(`partial-alloc-${tradeId}-${i}`)?.value || '0',
+    ),
+  )
   const totalAlloc = allocs.reduce((a, b) => a + b, 0)
   const remaining = Math.max(0, 100 - totalAlloc)
 
@@ -265,7 +300,10 @@ function updatePartialSummary(tradeId) {
   const el = document.getElementById(`partial-summary-${tradeId}`)
   if (!el) return
 
-  const warn = totalAlloc > 100 ? `<div class="partial-warn">⚠️ Total exceeds 100% — reduce allocations</div>` : ''
+  const warn =
+    totalAlloc > 100
+      ? `<div class="partial-warn">⚠️ Total exceeds 100% — reduce allocations</div>`
+      : ''
 
   el.innerHTML = `
     ${warn}
@@ -287,25 +325,37 @@ function updatePartialSummary(tradeId) {
         <span class="partial-stat-val pos">+${totalProfit.toFixed(2)}%</span>
       </div>
     </div>
-    ${allocs.map((a, i) => {
-      const closeUSD = ((a / 100) * posSize).toFixed(2)
-      return a > 0 ? `<div class="partial-breakdown">TP${i + 1}: Close $${closeUSD} (${a}%)</div>` : ''
-    }).join('')}`
+    ${allocs
+      .map((a, i) => {
+        const closeUSD = ((a / 100) * posSize).toFixed(2)
+        return a > 0
+          ? `<div class="partial-breakdown">TP${i + 1}: Close $${closeUSD} (${a}%)</div>`
+          : ''
+      })
+      .join('')}`
 }
 
 function savePartialAlloc(tradeId) {
-  const trade = trades.find(t => t.id === tradeId)
+  const trade = trades.find((t) => t.id === tradeId)
   if (!trade) return
-  const allocs = trade.tps.map((_, i) => parseFloat(document.getElementById(`partial-alloc-${tradeId}-${i}`)?.value || '0'))
-  const posSize = parseFloat(document.getElementById(`partial-pos-${tradeId}`)?.value || '100')
+  const allocs = trade.tps.map((_, i) =>
+    parseFloat(
+      document.getElementById(`partial-alloc-${tradeId}-${i}`)?.value || '0',
+    ),
+  )
+  const posSize = parseFloat(
+    document.getElementById(`partial-pos-${tradeId}`)?.value || '100',
+  )
   const total = allocs.reduce((a, b) => a + b, 0)
-  if (total > 100) { toast('❌ Total allocation exceeds 100%', 'error'); return }
+  if (total > 100) {
+    toast('❌ Total allocation exceeds 100%', 'error')
+    return
+  }
   partialData[tradeId] = { allocations: allocs, posSize }
   savePartial()
   closePartialModal()
   toast('✅ Partial TP plan saved', 'success')
 }
-
 
 // ════════════════════════════════════════════════════════════
 //  FEATURE 3 — TRADE JOURNAL
@@ -319,12 +369,34 @@ function savePartialAlloc(tradeId) {
 //  Stored under 'ma_journal' in localStorage
 // ════════════════════════════════════════════════════════════
 
-const JOURNAL_MOODS = ['😤 Confident', '😐 Neutral', '😰 Anxious', '🤑 FOMO', '🧘 Disciplined', '😤 Revenge']
+const JOURNAL_MOODS = [
+  '😤 Confident',
+  '😐 Neutral',
+  '😰 Anxious',
+  '🤑 FOMO',
+  '🧘 Disciplined',
+  '😤 Revenge',
+]
 const JOURNAL_TAGS = [
-  'Order Block', 'FVG', 'BOS', 'CHoCH', 'MSS',
-  'Liquidity Sweep', 'Equal Highs', 'Equal Lows', 'NWOG', 'NDOG',
-  'Breaker Block', 'Mitigation', 'Imbalance', 'Premium', 'Discount',
-  'KZ Alignment', 'HTF Bias', 'Session Open', 'News Avoidance',
+  'Order Block',
+  'FVG',
+  'BOS',
+  'CHoCH',
+  'MSS',
+  'Liquidity Sweep',
+  'Equal Highs',
+  'Equal Lows',
+  'NWOG',
+  'NDOG',
+  'Breaker Block',
+  'Mitigation',
+  'Imbalance',
+  'Premium',
+  'Discount',
+  'KZ Alignment',
+  'HTF Bias',
+  'Session Open',
+  'News Avoidance',
 ]
 
 let journalData = JSON.parse(localStorage.getItem('ma_journal') || '{}')
@@ -335,16 +407,21 @@ function saveJournal() {
 }
 
 function openJournalModal(tradeId) {
-  const trade = trades.find(t => t.id === tradeId)
+  const trade = trades.find((t) => t.id === tradeId)
   if (!trade) return
-  const j = journalData[tradeId] || { mood: '', tags: [], reasoning: '', reflection: '' }
+  const j = journalData[tradeId] || {
+    mood: '',
+    tags: [],
+    reasoning: '',
+    reflection: '',
+  }
 
-  const moodBtns = JOURNAL_MOODS.map(m => {
+  const moodBtns = JOURNAL_MOODS.map((m) => {
     const active = j.mood === m ? 'active' : ''
-    return `<button class="mood-btn ${active}" onclick="selectMood(${tradeId},'${m}')" id="mood-${tradeId}-${m.replace(/[^a-z]/gi,'')}">${m}</button>`
+    return `<button class="mood-btn ${active}" onclick="selectMood(${tradeId},'${m}')" id="mood-${tradeId}-${m.replace(/[^a-z]/gi, '')}">${m}</button>`
   }).join('')
 
-  const tagBtns = JOURNAL_TAGS.map(tag => {
+  const tagBtns = JOURNAL_TAGS.map((tag) => {
     const active = (j.tags || []).includes(tag) ? 'active' : ''
     const safe = tag.replace(/\s+/g, '-')
     return `<button class="jtag-btn ${active}" onclick="toggleJTag(${tradeId},'${tag}')" id="jtag-${tradeId}-${safe}">${tag}</button>`
@@ -352,7 +429,8 @@ function openJournalModal(tradeId) {
 
   const isOpen = trade.status === 'OPEN'
 
-  document.getElementById('journal-modal-title').textContent = `📓 Journal — ${trade.coin}`
+  document.getElementById('journal-modal-title').textContent =
+    `📓 Journal — ${trade.coin}`
   document.getElementById('journal-modal-body').innerHTML = `
     <div class="journal-section">
       <div class="journal-section-label">Mindset at entry</div>
@@ -366,11 +444,15 @@ function openJournalModal(tradeId) {
       <div class="journal-section-label">Pre-trade reasoning</div>
       <textarea id="journal-reason-${tradeId}" class="journal-textarea" placeholder="Why did you take this trade? What was your bias?">${j.reasoning || ''}</textarea>
     </div>
-    ${!isOpen ? `
+    ${
+      !isOpen
+        ? `
     <div class="journal-section">
       <div class="journal-section-label">Post-trade reflection</div>
       <textarea id="journal-reflect-${tradeId}" class="journal-textarea" placeholder="What went well? What would you do differently?">${j.reflection || ''}</textarea>
-    </div>` : ''}
+    </div>`
+        : ''
+    }
     <div class="journal-actions">
       <button class="btn-journal-save" onclick="saveJournalEntry(${tradeId}, ${!isOpen})">💾 Save Entry</button>
       <button class="btn-journal-cancel" onclick="closeJournalModal()">Cancel</button>
@@ -385,18 +467,26 @@ function closeJournalModal() {
 }
 
 function selectMood(tradeId, mood) {
-  const j = journalData[tradeId] || { mood: '', tags: [], reasoning: '', reflection: '' }
+  const j = journalData[tradeId] || {
+    mood: '',
+    tags: [],
+    reasoning: '',
+    reflection: '',
+  }
   j.mood = mood
   journalData[tradeId] = j
   // Update button styles
-  JOURNAL_MOODS.forEach(m => {
-    const btn = document.getElementById(`mood-${tradeId}-${m.replace(/[^a-z]/gi,'')}`)
+  JOURNAL_MOODS.forEach((m) => {
+    const btn = document.getElementById(
+      `mood-${tradeId}-${m.replace(/[^a-z]/gi, '')}`,
+    )
     if (btn) btn.classList.toggle('active', m === mood)
   })
 }
 
 function toggleJTag(tradeId, tag) {
-  if (!journalData[tradeId]) journalData[tradeId] = { mood: '', tags: [], reasoning: '', reflection: '' }
+  if (!journalData[tradeId])
+    journalData[tradeId] = { mood: '', tags: [], reasoning: '', reflection: '' }
   const j = journalData[tradeId]
   if (!j.tags) j.tags = []
   const idx = j.tags.indexOf(tag)
@@ -408,11 +498,14 @@ function toggleJTag(tradeId, tag) {
 }
 
 function saveJournalEntry(tradeId, includeReflection) {
-  if (!journalData[tradeId]) journalData[tradeId] = { mood: '', tags: [], reasoning: '', reflection: '' }
+  if (!journalData[tradeId])
+    journalData[tradeId] = { mood: '', tags: [], reasoning: '', reflection: '' }
   const j = journalData[tradeId]
-  j.reasoning = document.getElementById(`journal-reason-${tradeId}`)?.value.trim() || ''
+  j.reasoning =
+    document.getElementById(`journal-reason-${tradeId}`)?.value.trim() || ''
   if (includeReflection) {
-    j.reflection = document.getElementById(`journal-reflect-${tradeId}`)?.value.trim() || ''
+    j.reflection =
+      document.getElementById(`journal-reflect-${tradeId}`)?.value.trim() || ''
   }
   j.ts = new Date().toISOString()
   saveJournal()
@@ -432,7 +525,6 @@ function getJournalBadge(tradeId) {
     ${j.reasoning ? `<span class="journal-badge-text">"${j.reasoning.slice(0, 60)}${j.reasoning.length > 60 ? '…' : ''}"</span>` : ''}
   </div>`
 }
-
 
 // ════════════════════════════════════════════════════════════
 //  FEATURE 4 — BINANCE PNL SYNC (read-only API key)
@@ -461,7 +553,10 @@ async function openBinanceSyncPanel() {
 async function saveBinanceCreds() {
   const key = document.getElementById('bs-apikey').value.trim()
   const secret = document.getElementById('bs-apisecret').value.trim()
-  if (!key || !secret) { toast('❌ Both API Key and Secret required', 'error'); return }
+  if (!key || !secret) {
+    toast('❌ Both API Key and Secret required', 'error')
+    return
+  }
   binanceCreds = { apiKey: key, apiSecret: secret }
   localStorage.setItem('ma_binance_creds', JSON.stringify(binanceCreds))
   toast('🔑 Credentials saved (local only)', 'success')
@@ -470,9 +565,17 @@ async function saveBinanceCreds() {
 // HMAC-SHA256 using WebCrypto API (no external library needed)
 async function hmacSHA256(secret, message) {
   const enc = new TextEncoder()
-  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message))
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('')
+  return Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 async function syncBinancePnL() {
@@ -491,7 +594,7 @@ async function syncBinancePnL() {
     const url = `https://fapi.binance.com/fapi/v1/userTrades?${qString}&signature=${signature}`
 
     const resp = await fetch(url, {
-      headers: { 'X-MBX-APIKEY': binanceCreds.apiKey }
+      headers: { 'X-MBX-APIKEY': binanceCreds.apiKey },
     })
 
     if (!resp.ok) {
@@ -506,22 +609,32 @@ async function syncBinancePnL() {
     let results = []
 
     // Try to match each binance trade to our local trade records
-    const open = trades.filter(t => t.status === 'OPEN')
-    open.forEach(trade => {
+    const open = trades.filter((t) => t.status === 'OPEN')
+    open.forEach((trade) => {
       const sym = toBinanceSym(trade.coin)
-      const related = binanceTrades.filter(b => b.symbol === sym && b.time >= new Date(trade.date).getTime())
+      const related = binanceTrades.filter(
+        (b) => b.symbol === sym && b.time >= new Date(trade.date).getTime(),
+      )
       if (!related.length) return
 
-      const totalPnl = related.reduce((sum, b) => sum + parseFloat(b.realizedPnl), 0)
+      const totalPnl = related.reduce(
+        (sum, b) => sum + parseFloat(b.realizedPnl),
+        0,
+      )
       const totalQty = related.reduce((sum, b) => sum + parseFloat(b.qty), 0)
-      const avgExit = related.reduce((sum, b) => sum + parseFloat(b.price) * parseFloat(b.qty), 0) / totalQty
+      const avgExit =
+        related.reduce(
+          (sum, b) => sum + parseFloat(b.price) * parseFloat(b.qty),
+          0,
+        ) / totalQty
 
       results.push({ trade, totalPnl, avgExit, count: related.length })
       matched++
     })
 
     renderSyncResults(results, binanceTrades.length)
-    if (statusEl) statusEl.textContent = `✅ Synced — ${matched} matches from ${binanceTrades.length} fills`
+    if (statusEl)
+      statusEl.textContent = `✅ Synced — ${matched} matches from ${binanceTrades.length} fills`
     toast(`✅ Binance sync: ${matched} trade matches found`, 'success')
   } catch (e) {
     if (statusEl) statusEl.textContent = `❌ Error: ${e.message}`
@@ -536,9 +649,10 @@ function renderSyncResults(results, totalFills) {
     el.innerHTML = `<div class="bs-empty">No matching open trades found in recent Binance fills.</div>`
     return
   }
-  el.innerHTML = results.map(({ trade, totalPnl, avgExit, count }) => {
-    const pnlColor = totalPnl >= 0 ? 'pos' : 'neg'
-    return `
+  el.innerHTML = results
+    .map(({ trade, totalPnl, avgExit, count }) => {
+      const pnlColor = totalPnl >= 0 ? 'pos' : 'neg'
+      return `
     <div class="bs-result-row">
       <div class="bs-result-coin">${trade.coin}</div>
       <div class="bs-result-data">
@@ -548,14 +662,18 @@ function renderSyncResults(results, totalFills) {
       </div>
       <button class="bs-apply-btn" onclick="applyBinancePnL(${trade.id}, ${_fmt(avgExit)}, ${totalPnl})">Apply</button>
     </div>`
-  }).join('')
+    })
+    .join('')
 }
 
 function applyBinancePnL(tradeId, exitPrice, usdtPnl) {
-  const trade = trades.find(t => t.id === tradeId)
+  const trade = trades.find((t) => t.id === tradeId)
   if (!trade || trade.status !== 'OPEN') return
   const status = usdtPnl >= 0 ? 'WIN' : 'LOSS'
-  const profitPct = ((exitPrice - parseFloat(trade.entry)) / parseFloat(trade.entry)) * 100 * (tradeIsShort(trade) ? -1 : 1)
+  const profitPct =
+    ((exitPrice - parseFloat(trade.entry)) / parseFloat(trade.entry)) *
+    100 *
+    (tradeIsShort(trade) ? -1 : 1)
 
   trade.status = status
   trade.exitPrice = exitPrice
@@ -568,23 +686,28 @@ function applyBinancePnL(tradeId, exitPrice, usdtPnl) {
   renderHistory()
   updateStats()
   updateOpenBadge()
-  toast(`✅ Applied Binance PnL to ${trade.coin} — ${status}`, status === 'WIN' ? 'success' : 'error')
+  toast(
+    `✅ Applied Binance PnL to ${trade.coin} — ${status}`,
+    status === 'WIN' ? 'success' : 'error',
+  )
 }
 
 // ── HOOK INTO EXISTING PRICE MONITOR ─────────────────────────
 // Patch checkOpenTrades to also update trailing SLs
-const _origCheckOpenTrades = typeof checkOpenTrades !== 'undefined' ? checkOpenTrades : null
+const _origCheckOpenTrades =
+  typeof checkOpenTrades !== 'undefined' ? checkOpenTrades : null
 if (_origCheckOpenTrades) {
   // We wrap after the original function runs via the existing interval
   const _origInterval = setInterval(() => {
-    const open = trades.filter(t => t.status === 'OPEN')
+    const open = trades.filter((t) => t.status === 'OPEN')
     updateTrailingSLs(open)
   }, 5000)
 }
 
 // ── PATCH renderHistory to inject feature UI ─────────────────
 // We extend the existing renderHistory function to add new panels
-const _origRenderHistory = typeof renderHistory !== 'undefined' ? renderHistory : null
+const _origRenderHistory =
+  typeof renderHistory !== 'undefined' ? renderHistory : null
 
 function renderFeaturesForTrade(trade) {
   if (trade.status !== 'OPEN') {
@@ -597,7 +720,11 @@ function renderFeaturesForTrade(trade) {
   }
 
   const hasPartial = !!partialData[trade.id]
-  const hasJournal = !!(journalData[trade.id]?.mood || journalData[trade.id]?.tags?.length || journalData[trade.id]?.reasoning)
+  const hasJournal = !!(
+    journalData[trade.id]?.mood ||
+    journalData[trade.id]?.tags?.length ||
+    journalData[trade.id]?.reasoning
+  )
 
   return `
   <div class="features-row open-features">
@@ -625,7 +752,10 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 // Fallback if DOMContentLoaded already fired
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
+if (
+  document.readyState === 'complete' ||
+  document.readyState === 'interactive'
+) {
   setTimeout(injectFeatureModalsAndPanels, 0)
 }
 
@@ -633,7 +763,9 @@ function injectFeatureModalsAndPanels() {
   // Only inject once
   if (document.getElementById('partial-modal')) return
 
-  document.body.insertAdjacentHTML('beforeend', `
+  document.body.insertAdjacentHTML(
+    'beforeend',
+    `
 
   <!-- ── PARTIAL TP MODAL ── -->
   <div id="partial-modal" class="feat-modal-overlay" onclick="if(event.target===this)closePartialModal()">
@@ -672,22 +804,25 @@ function injectFeatureModalsAndPanels() {
     <button class="bs-sync-btn" onclick="syncBinancePnL()">⟳ Sync Now</button>
     <div id="bs-results" class="bs-results"></div>
   </div>
-  `)
+  `,
+  )
 
   // Inject Binance Sync button into Stats section
   const dangerZone = document.querySelector('.danger-zone')
   if (dangerZone) {
-    dangerZone.insertAdjacentHTML('beforebegin', `
+    dangerZone.insertAdjacentHTML(
+      'beforebegin',
+      `
     <div style="margin-bottom:16px">
       <button class="mini-btn" onclick="openBinanceSyncPanel()" style="color:#f5c518;border-color:rgba(245,197,24,.3);background:rgba(245,197,24,.06)">
         🔗 Binance PnL Sync
       </button>
-    </div>`)
-    // Move panel into stats section
-    document.getElementById('stats')?.insertBefore(
-      document.getElementById('binance-sync-panel'),
-      dangerZone
+    </div>`,
     )
+    // Move panel into stats section
+    document
+      .getElementById('stats')
+      ?.insertBefore(document.getElementById('binance-sync-panel'), dangerZone)
   }
 
   // Patch renderHistory to add feature rows
@@ -701,13 +836,16 @@ function patchRenderHistory() {
   window.renderHistory = function () {
     origRender()
     // After the original renders, inject feature rows into each trade card
-    document.querySelectorAll('.trade-item').forEach(card => {
+    document.querySelectorAll('.trade-item').forEach((card) => {
       const actions = card.querySelector('.trade-actions')
       if (!actions) return
-      const idMatch = actions.querySelector('[onclick]')?.getAttribute('onclick')?.match(/\d+/)
+      const idMatch = actions
+        .querySelector('[onclick]')
+        ?.getAttribute('onclick')
+        ?.match(/\d+/)
       if (!idMatch) return
       const tradeId = parseInt(idMatch[0])
-      const trade = trades.find(t => t.id === tradeId)
+      const trade = trades.find((t) => t.id === tradeId)
       if (!trade) return
 
       // Only inject if not already injected
