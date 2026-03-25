@@ -138,13 +138,11 @@
         </nav>
 
         <div class="sidebar-footer">
-          <span class="sf-item">v6.0</span>
+          <span class="sf-item">v6.1</span>
           <span class="sf-sep">·</span>
           <span class="sf-item" id="sidebar-status">LIVE</span>
           <span class="sf-sep">·</span>
-          <span class="sf-item monitor-badge" id="monitor-status"
-            >● Monitor</span
-          >
+          <span class="sf-item monitor-on" id="monitor-status">● Monitor</span>
         </div>
       </aside>
 
@@ -231,7 +229,7 @@
             <div class="form-row-3">
               <div class="input-group">
                 <label>Direction</label>
-                <select id="side">
+                <select id="side" onchange="calcRisk()">
                   <option value="Buy/Long">Buy / Long ⬆️</option>
                   <option value="Sell/Short">Sell / Short ⬇️</option>
                 </select>
@@ -298,7 +296,11 @@
                     step="any"
                     oninput="calcRisk()"
                   />
-                  <button class="tp-remove" style="visibility: hidden">
+                  <button
+                    class="tp-remove"
+                    style="visibility: hidden"
+                    tabindex="-1"
+                  >
                     ✕
                   </button>
                 </div>
@@ -315,7 +317,7 @@
               </div>
             </div>
 
-            <div class="input-group" style="margin-top: 4px">
+            <div class="input-group" style="margin-top: 6px">
               <label>Note <span class="opt-tag">optional</span></label>
               <input
                 type="text"
@@ -342,7 +344,7 @@
           </div>
 
           <button class="btn-primary" onclick="executeSignal()">
-            ◈ &nbsp;GENERATE &amp; SAVE SIGNAL
+            ◈ &nbsp; GENERATE &amp; SAVE SIGNAL
           </button>
 
           <div class="output-area" id="output-area" style="display: none">
@@ -463,7 +465,9 @@
           <pre id="popup-body" class="popup-body"></pre>
         </div>
         <div class="popup-footer">
-          <span class="popup-hint">Review before posting to Telegram</span>
+          <span class="popup-hint"
+            >Review carefully before posting to Telegram</span
+          >
           <button
             id="popup-copy-btn"
             class="popup-copy-btn"
