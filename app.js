@@ -297,20 +297,53 @@ function toBinanceSym(coin) {
 }
 
 function getRRLabel(rr) {
-  const r = Math.abs(rr)
-  if (r < 0.5) return `1 : ${r.toFixed(1)}`
-  if (r < 1.5) return '1 : 1 ✅'
-  if (r < 2.5) return '1 : 2 🔥'
-  if (r < 3.5) return '1 : 3 🚀'
-  if (r < 4.5) return '1 : 4 💎'
-  return `1 : ${Math.floor(r)} 💎`
+  const r = Math.abs(parseFloat(rr))
+  if (!isFinite(r) || r <= 0) return '—'
+  if (r < 1.0) return `1 : ${r.toFixed(2)}`
+  // Show clean integer label for whole numbers, decimal for fractions
+  const rounded = Math.round(r * 10) / 10
+  const display = Number.isInteger(rounded) ? rounded : rounded.toFixed(1)
+  return `1 : ${display}`
 }
 
 function getRREmoji(rr) {
-  if (rr < 1) return '⚠️'
-  if (rr < 2) return '✅'
-  if (rr < 3) return '🔥'
-  return '🚀'
+  const r = Math.abs(parseFloat(rr))
+  if (r < 1) return '⚠️'
+  if (r < 2) return '✅'
+  if (r < 3) return '🔥'
+  if (r < 5) return '🚀'
+  return '💎'
+}
+
+function getRRNote(mult) {
+  if (mult >= 5) return `💎 Exceptional move! Consider securing all profits.`
+  if (mult >= 4) return `🚀 Incredible run! Lock in profits or trail your stop.`
+  if (mult >= 3) return `🚀 Outstanding! Consider locking in partial profits.`
+  if (mult >= 2) return `🔥 Trade running beautifully — protect your position!`
+  return `✅ 1:1 achieved — move SL to Break Even to eliminate risk!`
+}
+
+// ── COMPUTE ALL R:R MILESTONES FOR A TRADE ──────────────────
+// Returns an array of whole-number R:R multiples from 1 up to
+// the maximum R:R reachable by the furthest TP.
+// e.g. if max TP gives 1:4.7 RR → returns [1, 2, 3, 4]
+function getTradeRRMilestones(trade) {
+  const lossP = calcLossPct(trade)
+  if (!lossP || lossP <= 0) return []
+
+  // Find the highest R:R achievable across all TPs
+  const maxRR = Math.max(
+    ...trade.tps.map((tp) => calcRR(Math.abs(calcProfitPct(trade, tp)), lossP)),
+  )
+
+  if (maxRR <= 0) return []
+
+  // Generate every whole-number milestone from 1 up to floor(maxRR)
+  const milestones = []
+  for (let n = 1; n <= Math.floor(maxRR); n++) {
+    milestones.push(n)
+  }
+  return milestones
 }
 
 // ── MESSAGE BUILDERS ────────────────────────────────────────
@@ -399,7 +432,6 @@ function buildRRMessage(t, mult) {
   const tag = coinTag(t)
   const lossP = calcLossPct(t)
   const profPct = fmtStr(lossP * mult)
-  // FIX: arithmetic on numbers, not strings
   const rrPrice = short
     ? fmtStr(
         parseFloat(t.entry) - ((parseFloat(t.entry) * lossP) / 100) * mult,
@@ -409,15 +441,11 @@ function buildRRMessage(t, mult) {
         parseFloat(t.entry) + ((parseFloat(t.entry) * lossP) / 100) * mult,
         6,
       )
-  const note =
-    mult >= 3
-      ? `🚀 Exceptional move! Consider locking in partial profits.`
-      : mult >= 2
-        ? `🔥 Trade running beautifully — protect your position!`
-        : `✅ 1:1 achieved — move SL to Break Even to eliminate risk!`
+  const emoji = getRREmoji(mult)
+  const note = getRRNote(mult)
 
   return (
-    `${getRREmoji(mult)} 1:${mult} RR REACHED!\n` +
+    `${emoji} 1:${mult} RR REACHED!\n` +
     `╔══════════════════════════╗\n` +
     `  🀄  ${tag}  ${short ? 'SHORT 🔴' : 'LONG 🟢'}\n` +
     `╚══════════════════════════╝\n\n` +
@@ -425,7 +453,7 @@ function buildRRMessage(t, mult) {
     `⚖️  1:${mult} Level    ›  ~${rrPrice}\n\n` +
     `┌─────────────────────────┐\n` +
     `  📈 Profit   :  +${profPct}%\n` +
-    `  ⚖️  R : R    :  1 : ${mult}  ${getRREmoji(mult)}\n` +
+    `  ⚖️  R : R    :  1 : ${mult}  ${emoji}\n` +
     `  💰 Risk was :  ${t.riskPct}% of balance\n` +
     `└─────────────────────────┘\n\n` +
     note +
@@ -640,6 +668,7 @@ function executeSignal() {
     profit: null,
     hitTPs: [],
     tpMessages: {},
+    hitRRs: [], // which whole-number R:R milestones have been crossed
     autoTriggered: false,
     resultMessage: null,
   }
@@ -714,17 +743,15 @@ async function checkOpenTrades() {
     let changed = false
 
     open.forEach((trade) => {
-      // Guard: skip if already closed (race condition protection)
       if (trade.status !== 'OPEN') return
 
       const price = liveprices[toBinanceSym(trade.coin)]
       if (!price || !Number.isFinite(price)) return
 
       const short = tradeIsShort(trade)
+      const lossP = calcLossPct(trade)
 
-      // ── SL check: triggers if price reaches OR passes through SL ──
-      //   LONG:  price <= sl
-      //   SHORT: price >= sl
+      // ── SL: triggers if price reaches OR passes through SL ──
       const slHit = short ? price >= trade.sl : price <= trade.sl
       if (slHit) {
         autoClose(trade, 'LOSS', price)
@@ -732,12 +759,33 @@ async function checkOpenTrades() {
         return
       }
 
+      // ── R:R MILESTONE MONITOR ──
+      // Track every whole-number R:R the price has crossed while OPEN.
+      // If a new milestone is reached, notify. Never notify same milestone twice.
+      if (!trade.hitRRs) trade.hitRRs = []
+      const currentRR = calcRR(Math.abs(calcProfitPct(trade, price)), lossP)
+
+      if (currentRR > 0) {
+        // Find the highest whole-number milestone price has crossed
+        const maxMilestone = Math.floor(currentRR)
+        for (let n = 1; n <= maxMilestone; n++) {
+          if (!trade.hitRRs.includes(n)) {
+            trade.hitRRs.push(n)
+            changed = true
+            // Show RR milestone notification (softer toast — not a full output swap)
+            toast(
+              `⚖️ ${trade.coin} reached 1:${n} RR @ ${price.toLocaleString()}!`,
+              'info',
+              5000,
+            )
+          }
+        }
+      }
+
       // ── TP checks: triggers if price reaches OR passes through TP ──
-      //   LONG:  price >= tp  (at or above)
-      //   SHORT: price <= tp  (at or below)
       trade.tps.forEach((tp, i) => {
         if ((trade.hitTPs || []).includes(i)) return
-        if (trade.status !== 'OPEN') return // re-check in case SL or earlier TP closed it
+        if (trade.status !== 'OPEN') return
 
         const tpHit = short ? price <= tp : price >= tp
         if (!tpHit) return
@@ -756,7 +804,6 @@ async function checkOpenTrades() {
           6000,
         )
 
-        // Close WIN only when ALL TPs are hit
         if (trade.hitTPs.length === trade.tps.length) {
           autoClose(trade, 'WIN', price)
         }
@@ -967,30 +1014,28 @@ function renderHistory() {
       </div>`
 
       // ── SMART MESSAGE PANEL ──
-      // Only shows buttons relevant to what has happened / what can happen
+      // Only shows buttons relevant to what has happened / what can happen.
+      // R:R milestones are computed from the trade's actual TPs — not hardcoded.
       const msgBtns = []
 
       if (trade.status === 'OPEN') {
-        // While OPEN: signal + R:R updates + any hit TPs
+        // Original signal — always first
         msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
-        msgBtns.push({
-          type: 'rr',
-          label: '⚖️ 1:1 RR',
-          cls: 'rr-btn',
-          extra: 1,
+
+        // R:R milestones: dynamically computed from entry/sl/tps
+        // e.g. if furthest TP gives 1:4.7 RR → show 1:1, 1:2, 1:3, 1:4
+        const milestones = getTradeRRMilestones(trade)
+        milestones.forEach((n) => {
+          const alreadyHit = (trade.hitRRs || []).includes(n)
+          msgBtns.push({
+            type: 'rr',
+            label: `${alreadyHit ? '✅' : '⚖️'} 1:${n} RR`,
+            cls: alreadyHit ? 'rr-btn rr-hit' : 'rr-btn',
+            extra: n,
+          })
         })
-        msgBtns.push({
-          type: 'rr',
-          label: '⚖️ 1:2 RR',
-          cls: 'rr-btn',
-          extra: 2,
-        })
-        msgBtns.push({
-          type: 'rr',
-          label: '⚖️ 1:3 RR',
-          cls: 'rr-btn',
-          extra: 3,
-        })
+
+        // TPs that have already been hit
         ;(trade.hitTPs || []).forEach((i) =>
           msgBtns.push({
             type: 'tp',
@@ -1000,7 +1045,7 @@ function renderHistory() {
           }),
         )
       } else if (trade.status === 'WIN') {
-        // After WIN: signal + hit TPs + final result — NO SL, NO R:R
+        // After WIN: signal + hit TP messages + final result — NO SL, NO R:R
         msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
         ;(trade.hitTPs || []).forEach((i) =>
           msgBtns.push({
