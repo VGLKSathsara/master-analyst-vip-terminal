@@ -1,4 +1,4 @@
-﻿# 🚀 Master Analyst VIP Trading Terminal
+﻿# 🚀 Master Analyst VIP Trading Terminal v8.0
 
 <div align="center">
 
@@ -8,6 +8,7 @@
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26.svg)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6.svg)
 ![Real-Time](https://img.shields.io/badge/Real--Time-KZ%20Tracker-red.svg)
+![Keyboard](https://img.shields.io/badge/Keyboard-Shortcuts-orange.svg)
 
 **Professional Crypto Trading Signal Management Dashboard with Real-Time Market Data & Live Kill Zone Tracker**
 
@@ -23,10 +24,23 @@
 ## 📸 **Dashboard Preview**
 
 <div align="center">
-  <img src="https://via.placeholder.com/1200x600/0f172a/facc15?text=Master+Analyst+VIP+Terminal+-+Live+Demo" alt="Dashboard Screenshot" width="90%">
+  <img src="https://via.placeholder.com/1200x600/0f172a/facc15?text=Master+Analyst+VIP+Terminal+v8.0+-+Live+Demo" alt="Dashboard Screenshot" width="90%">
   <br>
   <em>Professional trading interface with real-time analytics and live Kill Zone tracker</em>
 </div>
+
+---
+
+## 🆕 **What's New in v8.0**
+
+| Feature                      | Description                                             |
+| ---------------------------- | ------------------------------------------------------- |
+| ✏️ **Edit Open Trades**      | Modify existing open trades without recreating them     |
+| 🔍 **History Search**        | Search through trade history by notes                   |
+| ⌨️ **Keyboard Shortcuts**    | Ctrl+Enter to generate, Alt+G/H/S for navigation        |
+| ⚡ **Better Error Handling** | API retry logic with 10s timeout and auto-reconnect     |
+| 🎯 **Improved RR Tracking**  | Milestones recorded on auto-close for complete tracking |
+| 🐛 **Bug Fixes**             | Fixed clock IDs, KZ time consistency, and monitor badge |
 
 ---
 
@@ -37,6 +51,7 @@
 | Feature                      | Description                                                              |
 | ---------------------------- | ------------------------------------------------------------------------ |
 | 📊 **Signal Generator**      | Create professional trading signals with one click, ready for Telegram   |
+| ✏️ **Edit Open Trades**      | Modify any open trade's entry, SL, TPs, or notes                         |
 | 💾 **Trade Management**      | Track, update, and close trades with automatic P&L calculation           |
 | 📈 **Performance Analytics** | Win rate, profit factor, and interactive monthly performance charts      |
 | 🌍 **Multi-Timezone Clocks** | Live clocks for New York, London, and Sri Lanka with seconds             |
@@ -48,13 +63,22 @@
 - ✅ **Real-Time Kill Zone Tracker** - Updates every second with active session indicators
 - ✅ **Countdown Timer** - Shows exactly when next trading session starts
 - ✅ **Win/Loss Tracking** - Automatic P&L percentage calculation
+- ✅ **Edit Open Trades** - Modify trades on the fly without data loss
+- ✅ **History Search** - Filter trades by notes and keywords
+- ⌨️ **Keyboard Shortcuts** - Speed up your workflow:
+  - `Ctrl + Enter` - Generate signal
+  - `Alt + G` - Go to Signal Generator
+  - `Alt + H` - Go to Trade History
+  - `Alt + S` - Go to Analytics
+  - `Escape` - Close popup windows
 - 📊 **CSV Export** - Generate Excel/Google Sheets compatible reports
 - 💾 **JSON Backup** - Complete data portability with import/export
-- 🔍 **Coin Search** - Auto-suggestions for 15+ cryptocurrencies
+- 🔍 **Coin Search** - Auto-suggestions for 25+ cryptocurrencies
 - 📱 **Responsive Design** - Fully functional on desktop, tablet, and mobile
 - 🎨 **Professional UI** - Smooth animations, hover effects, and modern design
 - 📝 **Telegram Integration** - One-click copy for formatted trading signals
 - 📈 **Monthly Charts** - Visual performance tracking with Chart.js
+- 🔄 **Auto-Reconnect** - Automatic retry on API failures
 
 ---
 
@@ -62,19 +86,20 @@
 
 The dashboard automatically tracks high-probability trading sessions in **real-time** with second-by-second updates:
 
-| Session                  | Time (UTC)    | Activity Level | Description                              |
-| ------------------------ | ------------- | -------------- | ---------------------------------------- |
-| 🇬🇧 **London KZ**         | 08:00 - 10:00 | 🔥 HIGH        | Highest volatility for GBP and EUR pairs |
-| ⚡ **London-NY Overlap** | 12:00 - 13:00 | 🚀 EXTREME     | Best trading time - maximum liquidity    |
-| 🇺🇸 **New York KZ**       | 13:00 - 15:00 | 🔥 HIGH        | Major market moves, US session open      |
-| 🌏 **Asia KZ**           | 20:00 - 22:00 | ⚡ MEDIUM      | Asian session breakouts, JPY pairs       |
+| Session             | Time (UTC)    | Activity Level | Description                                  |
+| ------------------- | ------------- | -------------- | -------------------------------------------- |
+| 🌏 **Asia KZ**      | 01:00 - 03:00 | ⚡ MEDIUM      | Tokyo open, AUD/NZD/JPY pairs                |
+| 🇬🇧 **London KZ**    | 07:00 - 10:00 | 🔥 HIGH        | London open, highest volume for EUR/GBP/CHF  |
+| ⚡ **New York KZ**  | 12:00 - 15:00 | 🚀 EXTREME     | NY open + London overlap - maximum liquidity |
+| 🎯 **London Close** | 15:00 - 17:00 | 🔥 HIGH        | Position squaring, watch for reversals       |
 
 **Live Features:**
 
 - 🔴 Active session indicator with color-coded progress bar
-- ⏰ Countdown timer to next session
+- ⏰ Countdown timer to next session (accurate to the second)
 - 📊 Session progress percentage
-- 💬 Real-time status messages
+- 💬 Real-time status messages with session details
+- 🎨 Color-coded session highlights in schedule
 
 ---
 
@@ -97,6 +122,7 @@ The dashboard automatically tracks high-probability trading sessions in **real-t
 - **Market Data**: Binance Public API (no API key required)
 - **Icons**: Pure emoji - no external dependencies
 - **Real-Time Updates**: JavaScript setInterval with 1-second precision
+- **Error Handling**: Automatic retry with 10-second timeout
 
 ---
 
@@ -121,5 +147,3 @@ open index.html
 # Linux:
 xdg-open index.html
 ```
-
-//

@@ -100,7 +100,7 @@
               <span id="time-london" class="time-val">--:--:--</span>
             </div>
           </div>
-          <div class="clock-card">
+          <div class="clock-card" id="clock-sl">
             <span class="clock-flag">🇱🇰</span>
             <div class="clock-info">
               <span class="clock-label">SRI LANKA</span>
@@ -138,7 +138,7 @@
         </nav>
 
         <div class="sidebar-footer">
-          <span class="sf-item">v6.1</span>
+          <span class="sf-item">v8.0</span>
           <span class="sf-sep">·</span>
           <span class="sf-item" id="sidebar-status">LIVE</span>
           <span class="sf-sep">·</span>
@@ -370,6 +370,15 @@
               </p>
             </div>
             <div class="history-actions">
+              <div class="search-container" style="margin-right: 10px">
+                <span class="search-icon">⌕</span>
+                <input
+                  type="text"
+                  id="history-search"
+                  placeholder="Search notes..."
+                  oninput="filterHistoryByNote()"
+                />
+              </div>
               <select
                 id="history-filter"
                 onchange="renderHistory()"

@@ -1531,3 +1531,66 @@ textarea {
     grid-column: span 1;
   }
 }
+/* ── EDIT BUTTON STYLE ───────────────────────────────────────── */
+.trade-btn.edit {
+  background: var(--surface2);
+  color: var(--accent);
+  border: 1px solid rgba(245, 197, 24, 0.3);
+}
+.trade-btn.edit:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+/* ── HISTORY SEARCH ──────────────────────────────────────────── */
+.history-actions .search-container {
+  margin-right: 10px;
+}
+.history-actions .search-container input {
+  width: 160px;
+  padding: 7px 12px 7px 28px;
+  font-size: 11.5px;
+}
+.history-actions .search-container .search-icon {
+  font-size: 12px;
+  left: 8px;
+}
+
+/* ── RESPONSIVE FIXES ───────────────────────────────────────── */
+@media (max-width: 780px) {
+  .history-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .history-actions .search-container {
+    width: 100%;
+    margin-right: 0;
+  }
+  .history-actions .search-container input {
+    width: 100%;
+  }
+  .msg-btn-row {
+    flex-wrap: wrap;
+  }
+  .msg-btn {
+    white-space: normal;
+    font-size: 10px;
+    padding: 5px 10px;
+  }
+}
+
+/* ── LIVE BADGE ANIMATION ────────────────────────────────────── */
+.live-badge {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
