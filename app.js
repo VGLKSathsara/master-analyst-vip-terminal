@@ -1,11 +1,10 @@
 // ════════════════════════════════════════════════════════════
-//  MASTER ANALYST VIP  ·  app.js  v8.0
+//  MASTER ANALYST VIP  ·  app.js  v8.2  FINAL
 //
-//  KILL ZONES — Correct ICT times in UTC (DST-proof):
-//    Asia KZ       01:00–03:00 UTC  (Tokyo open, AUD/NZD/JPY)
-//    London KZ     07:00–10:00 UTC  (London open, EUR/GBP/CHF)
-//    New York KZ   12:00–15:00 UTC  (NY open + London overlap)
-//    London Close  15:00–17:00 UTC  (Position squaring, reversals)
+//  CHANGES v8.2:
+//  - Added Manual Mode toggle for limit orders
+//  - Manual mode trades are NOT auto-monitored
+//  - Shows "📝 MANUAL" badge on manual mode trades
 // ════════════════════════════════════════════════════════════
 
 // ── STATE ──────────────────────────────────────────────────
@@ -16,6 +15,7 @@ let priceMonitorInterval = null
 let liveprices = {}
 let tpCount = 2
 let historySearchTerm = ''
+let searchDebounceTimer = null
 
 // ── KILL ZONE SESSIONS (UTC hours) ─────────────────────────
 const KZ_SESSIONS = [
@@ -189,7 +189,7 @@ function addTP() {
   row.id = `tp-row-${n}`
   row.innerHTML = `
     <span class="tp-label">TP ${n}</span>
-    <input type="number" id="tp${n}" placeholder="0.00000" step="any"/>
+    <input type="number" id="tp${n}" placeholder="0.00000" step="any" oninput="calcRisk()"/>
     <button class="tp-remove" onclick="removeTP(${n})">✕</button>`
   document.getElementById('tp-inputs').appendChild(row)
 }
@@ -211,6 +211,7 @@ function removeTP(n) {
       btn.onclick = num === 1 ? null : () => removeTP(num)
     }
   })
+  calcRisk()
 }
 
 function getTPValues() {
@@ -219,6 +220,30 @@ function getTPValues() {
       parseFloat(document.getElementById(`tp${i + 1}`)?.value || ''),
     )
     .filter((v) => Number.isFinite(v) && v > 0)
+}
+
+// ── TP ORDER VALIDATION ────────────────────────────────────
+function validateTPOrder(tps, isShort) {
+  if (tps.length < 2) return { valid: true }
+
+  for (let i = 1; i < tps.length; i++) {
+    if (isShort) {
+      if (tps[i] >= tps[i - 1]) {
+        return {
+          valid: false,
+          error: `TP${i + 1} (${tps[i]}) must be lower than TP${i} (${tps[i - 1]}) for SHORT position`,
+        }
+      }
+    } else {
+      if (tps[i] <= tps[i - 1]) {
+        return {
+          valid: false,
+          error: `TP${i + 1} (${tps[i]}) must be higher than TP${i} (${tps[i - 1]}) for LONG position`,
+        }
+      }
+    }
+  }
+  return { valid: true }
 }
 
 // ── RISK PREVIEW ────────────────────────────────────────────
@@ -367,6 +392,9 @@ function buildOpenMessage(t) {
 
   const beLine = t.be && t.be !== 'None' ? `  🔵 BE     ›  ${t.be}\n` : ''
   const noteLine = t.note ? `\n💬 ${t.note}\n` : ''
+  const manualNote = t.manualMode
+    ? `\n📝 MANUAL MODE: Limit order placed. Monitor manually.\n`
+    : ''
 
   return (
     `╔══════════════════════════╗\n` +
@@ -374,7 +402,9 @@ function buildOpenMessage(t) {
     `  ${dir}  ${arrow}\n` +
     `╚══════════════════════════╝\n\n` +
     `📋 ${(t.orderType || 'LIMIT ORDER').toUpperCase()}\n` +
-    `🔒 Leverage  :  ${t.leverage}\n\n` +
+    `🔒 Leverage  :  ${t.leverage}\n` +
+    manualNote +
+    `\n` +
     `┌─────────────────────────┐\n` +
     `  📍 Entry  ›  ${t.entry}\n` +
     `${tpLines}\n` +
@@ -615,7 +645,7 @@ function copyOutput() {
     })
 }
 
-// ── SIGNAL GENERATOR ────────────────────────────────────────
+// ── SIGNAL GENERATOR (UPDATED WITH MANUAL MODE) ─────────────
 function executeSignal() {
   const coin = document.getElementById('coin').value.trim()
   const side = document.getElementById('side').value
@@ -629,7 +659,9 @@ function executeSignal() {
   const riskPct = document.getElementById('risk-pct').value || '1'
   const tps = getTPValues()
   const short = side.includes('Short')
+  const manualMode = document.getElementById('manual-mode')?.checked || false
 
+  // Validation
   if (!coin) return toast('❌ Asset name required', 'error')
   if (!Number.isFinite(entry) || entry <= 0)
     return toast('❌ Valid entry price required', 'error')
@@ -637,10 +669,18 @@ function executeSignal() {
     return toast('❌ Valid stop loss required', 'error')
   if (tps.length === 0) return toast('❌ At least one TP required', 'error')
 
+  // TP direction validation
   const badTP = tps.some((tp) => (short ? tp >= entry : tp <= entry))
   if (badTP)
     return toast('❌ TP must be beyond entry in the trade direction', 'error')
 
+  // TP order validation
+  const orderValidation = validateTPOrder(tps, short)
+  if (!orderValidation.valid) {
+    return toast(`❌ ${orderValidation.error}`, 'error')
+  }
+
+  // SL direction validation
   const badSL = short ? sl <= entry : sl >= entry
   if (badSL) return toast('❌ SL must be on the loss side of entry', 'error')
 
@@ -667,6 +707,7 @@ function executeSignal() {
     hitRRs: [],
     autoTriggered: false,
     resultMessage: null,
+    manualMode: manualMode, // NEW: Manual mode flag
   }
 
   trades.unshift(trade)
@@ -676,7 +717,12 @@ function executeSignal() {
   updateStats()
   updateOpenBadge()
   startPriceMonitor()
-  toast('✅ Signal saved & monitoring active!', 'success')
+
+  if (manualMode) {
+    toast('✅ Signal saved in MANUAL MODE (no auto-monitoring)', 'info')
+  } else {
+    toast('✅ Signal saved & monitoring active!', 'success')
+  }
 }
 
 function resetForm() {
@@ -698,9 +744,12 @@ function resetForm() {
     .forEach((p) => p.classList.remove('active'))
   const pr = document.getElementById('risk-preview')
   if (pr) pr.style.display = 'none'
+  // Reset manual mode checkbox
+  const manualCheckbox = document.getElementById('manual-mode')
+  if (manualCheckbox) manualCheckbox.checked = false
 }
 
-// ── PRICE MONITOR ───────────────────────────────────────────
+// ── PRICE MONITOR (UPDATED - SKIPS MANUAL MODE TRADES) ─────
 function startPriceMonitor() {
   if (priceMonitorInterval) clearInterval(priceMonitorInterval)
   priceMonitorInterval = setInterval(checkOpenTrades, 5000)
@@ -716,7 +765,8 @@ function setMonitorBadge(on) {
 }
 
 async function checkOpenTrades() {
-  const open = trades.filter((t) => t.status === 'OPEN')
+  // IMPORTANT: Skip manual mode trades - they are NOT auto-monitored
+  const open = trades.filter((t) => t.status === 'OPEN' && !t.manualMode)
   if (!open.length) {
     setMonitorBadge(false)
     return
@@ -931,6 +981,7 @@ function editOpenTrade(id) {
   document.getElementById('leverage').value = trade.leverage
   document.getElementById('risk-pct').value = trade.riskPct
   document.getElementById('note').value = trade.note || ''
+  document.getElementById('manual-mode').checked = trade.manualMode || false
 
   while (document.querySelectorAll('.tp-row').length > 1) {
     removeTP(document.querySelectorAll('.tp-row').length)
@@ -959,11 +1010,17 @@ function saveTrades() {
   localStorage.setItem('ma_trades', JSON.stringify(trades))
 }
 
-// ── HISTORY RENDER ──────────────────────────────────────────
+// ── HISTORY RENDER WITH DEBOUNCE ────────────────────────────
 function filterHistoryByNote() {
-  historySearchTerm =
-    document.getElementById('history-search')?.value.toLowerCase() || ''
-  renderHistory()
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+
+  searchDebounceTimer = setTimeout(() => {
+    historySearchTerm =
+      document.getElementById('history-search')?.value.toLowerCase() || ''
+    renderHistory()
+  }, 300)
 }
 
 function renderHistory() {
@@ -1007,6 +1064,9 @@ function renderHistory() {
           : ''
       const autoBadge = trade.autoTriggered
         ? `<span class="badge badge-auto">⚡ AUTO</span>`
+        : ''
+      const manualBadge = trade.manualMode
+        ? `<span class="badge badge-auto">📝 MANUAL</span>`
         : ''
 
       const tpRows = (trade.tps || [trade.tp])
@@ -1056,6 +1116,7 @@ function renderHistory() {
         </div>`
 
       const msgBtns = []
+
       if (trade.status === 'OPEN') {
         msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
         const milestones = getTradeRRMilestones(trade)
@@ -1077,22 +1138,22 @@ function renderHistory() {
           }),
         )
       } else if (trade.status === 'WIN') {
-        msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
-        ;(trade.hitTPs || []).forEach((i) =>
-          msgBtns.push({
-            type: 'tp',
-            label: `🎯 TP${i + 1}`,
-            cls: 'tp-msg-btn',
-            extra: i,
-          }),
-        )
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
+        })
         msgBtns.push({
           type: 'result',
           label: '🏆 Final Result',
           cls: 'result-btn',
         })
       } else if (trade.status === 'LOSS') {
-        msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
+        })
         msgBtns.push({ type: 'sl', label: '🛑 SL Hit', cls: 'sl-btn' })
         msgBtns.push({
           type: 'result',
@@ -1119,6 +1180,7 @@ function renderHistory() {
             <span class="badge ${sideClass}">${trade.side}</span>
             <span class="badge ${stClass}">${trade.status}</span>
             ${autoBadge}
+            ${manualBadge}
             ${trade.leverage ? `<span class="badge badge-open">${trade.leverage}</span>` : ''}
           </div>
         </div>
@@ -1302,6 +1364,7 @@ function downloadCSV() {
     'PnL%',
     'RR',
     'AutoTriggered',
+    'ManualMode',
     'Note',
   ]
   const rows = trades.map((t) => {
@@ -1325,6 +1388,7 @@ function downloadCSV() {
       t.profit ?? '',
       rr,
       t.autoTriggered ? 'Yes' : 'No',
+      t.manualMode ? 'Yes' : 'No',
       t.note || '',
     ]
   })
