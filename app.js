@@ -1,11 +1,10 @@
 // ════════════════════════════════════════════════════════════
-//  MASTER ANALYST VIP  ·  app.js  v8.0
+//  MASTER ANALYST VIP  ·  app.js  v8.1  FINAL
 //
-//  KILL ZONES — Correct ICT times in UTC (DST-proof):
-//    Asia KZ       01:00–03:00 UTC  (Tokyo open, AUD/NZD/JPY)
-//    London KZ     07:00–10:00 UTC  (London open, EUR/GBP/CHF)
-//    New York KZ   12:00–15:00 UTC  (NY open + London overlap)
-//    London Close  15:00–17:00 UTC  (Position squaring, reversals)
+//  CHANGES v8.1:
+//  - Removed TP buttons from WIN trades (UX fix)
+//  - Added TP order validation
+//  - Added debounce to history search
 // ════════════════════════════════════════════════════════════
 
 // ── STATE ──────────────────────────────────────────────────
@@ -16,6 +15,7 @@ let priceMonitorInterval = null
 let liveprices = {}
 let tpCount = 2
 let historySearchTerm = ''
+let searchDebounceTimer = null
 
 // ── KILL ZONE SESSIONS (UTC hours) ─────────────────────────
 const KZ_SESSIONS = [
@@ -189,7 +189,7 @@ function addTP() {
   row.id = `tp-row-${n}`
   row.innerHTML = `
     <span class="tp-label">TP ${n}</span>
-    <input type="number" id="tp${n}" placeholder="0.00000" step="any"/>
+    <input type="number" id="tp${n}" placeholder="0.00000" step="any" oninput="calcRisk()"/>
     <button class="tp-remove" onclick="removeTP(${n})">✕</button>`
   document.getElementById('tp-inputs').appendChild(row)
 }
@@ -211,6 +211,7 @@ function removeTP(n) {
       btn.onclick = num === 1 ? null : () => removeTP(num)
     }
   })
+  calcRisk()
 }
 
 function getTPValues() {
@@ -219,6 +220,32 @@ function getTPValues() {
       parseFloat(document.getElementById(`tp${i + 1}`)?.value || ''),
     )
     .filter((v) => Number.isFinite(v) && v > 0)
+}
+
+// ── TP ORDER VALIDATION (NEW) ──────────────────────────────
+function validateTPOrder(tps, isShort) {
+  if (tps.length < 2) return { valid: true }
+
+  for (let i = 1; i < tps.length; i++) {
+    if (isShort) {
+      // For SHORT: TP should be decreasing (lower prices)
+      if (tps[i] >= tps[i - 1]) {
+        return {
+          valid: false,
+          error: `TP${i + 1} (${tps[i]}) must be lower than TP${i} (${tps[i - 1]}) for SHORT position`,
+        }
+      }
+    } else {
+      // For LONG: TP should be increasing (higher prices)
+      if (tps[i] <= tps[i - 1]) {
+        return {
+          valid: false,
+          error: `TP${i + 1} (${tps[i]}) must be higher than TP${i} (${tps[i - 1]}) for LONG position`,
+        }
+      }
+    }
+  }
+  return { valid: true }
 }
 
 // ── RISK PREVIEW ────────────────────────────────────────────
@@ -630,6 +657,7 @@ function executeSignal() {
   const tps = getTPValues()
   const short = side.includes('Short')
 
+  // Validation
   if (!coin) return toast('❌ Asset name required', 'error')
   if (!Number.isFinite(entry) || entry <= 0)
     return toast('❌ Valid entry price required', 'error')
@@ -637,10 +665,18 @@ function executeSignal() {
     return toast('❌ Valid stop loss required', 'error')
   if (tps.length === 0) return toast('❌ At least one TP required', 'error')
 
+  // TP direction validation
   const badTP = tps.some((tp) => (short ? tp >= entry : tp <= entry))
   if (badTP)
     return toast('❌ TP must be beyond entry in the trade direction', 'error')
 
+  // TP order validation (NEW)
+  const orderValidation = validateTPOrder(tps, short)
+  if (!orderValidation.valid) {
+    return toast(`❌ ${orderValidation.error}`, 'error')
+  }
+
+  // SL direction validation
   const badSL = short ? sl <= entry : sl >= entry
   if (badSL) return toast('❌ SL must be on the loss side of entry', 'error')
 
@@ -959,11 +995,19 @@ function saveTrades() {
   localStorage.setItem('ma_trades', JSON.stringify(trades))
 }
 
-// ── HISTORY RENDER ──────────────────────────────────────────
+// ── HISTORY RENDER WITH DEBOUNCE (UPDATED) ──────────────────
 function filterHistoryByNote() {
-  historySearchTerm =
-    document.getElementById('history-search')?.value.toLowerCase() || ''
-  renderHistory()
+  // Clear existing timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+  }
+
+  // Set new timer with 300ms delay
+  searchDebounceTimer = setTimeout(() => {
+    historySearchTerm =
+      document.getElementById('history-search')?.value.toLowerCase() || ''
+    renderHistory()
+  }, 300)
 }
 
 function renderHistory() {
@@ -1056,7 +1100,9 @@ function renderHistory() {
         </div>`
 
       const msgBtns = []
+
       if (trade.status === 'OPEN') {
+        // OPEN trades: Show all message buttons
         msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
         const milestones = getTradeRRMilestones(trade)
         milestones.forEach((n) => {
@@ -1077,22 +1123,24 @@ function renderHistory() {
           }),
         )
       } else if (trade.status === 'WIN') {
-        msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
-        ;(trade.hitTPs || []).forEach((i) =>
-          msgBtns.push({
-            type: 'tp',
-            label: `🎯 TP${i + 1}`,
-            cls: 'tp-msg-btn',
-            extra: i,
-          }),
-        )
+        // WIN trades: Only Signal (historical) and Final Result - NO TP BUTTONS (FIXED)
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
+        })
         msgBtns.push({
           type: 'result',
           label: '🏆 Final Result',
           cls: 'result-btn',
         })
       } else if (trade.status === 'LOSS') {
-        msgBtns.push({ type: 'signal', label: '📊 Signal', cls: 'signal-btn' })
+        // LOSS trades: Signal, SL Hit, Final Result
+        msgBtns.push({
+          type: 'signal',
+          label: '📊 Original Signal',
+          cls: 'signal-btn',
+        })
         msgBtns.push({ type: 'sl', label: '🛑 SL Hit', cls: 'sl-btn' })
         msgBtns.push({
           type: 'result',
