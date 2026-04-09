@@ -70,60 +70,166 @@
       </div>
     </nav>
 
-    <!-- Hero Section -->
+    <!-- Hero Section with World Map -->
     <section id="home" class="hero">
       <div class="hero-bg"></div>
       <div class="hero-content">
-        <div class="hero-badge">
-          <span class="pulse-dot"></span>
-          Live Market Data
-        </div>
-        <h1 class="hero-title">Professional Crypto<br />Trading Signals</h1>
-        <p class="hero-subtitle">
-          Advanced signal generation with Kill Zone tracking, automated TP/SL
-          monitoring, and comprehensive analytics. All data stored locally.
-        </p>
+        <div class="hero-left">
+          <div class="hero-badge">
+            <span class="pulse-dot"></span>
+            Live Market Data
+          </div>
+          <h1 class="hero-title">Professional Crypto<br />Trading Signals</h1>
+          <p class="hero-subtitle">
+            Advanced signal generation with Kill Zone tracking, automated TP/SL
+            monitoring, and comprehensive analytics. All data stored locally.
+          </p>
 
-        <!-- Kill Zone Status Card -->
-        <div class="kz-status-card" id="kz-hero-card">
-          <div class="kz-header">
-            <span class="kz-dot" id="kz-dot"></span>
-            <span id="kz-name">Checking sessions...</span>
-            <span id="kz-timer">--:--:--</span>
+          <!-- Quick Stats Row -->
+          <div class="hero-quick-stats">
+            <div class="hq-stat">
+              <span class="hq-value" id="hero-btc">$0</span>
+              <span class="hq-label">BTC/USDT</span>
+            </div>
+            <div class="hq-stat">
+              <span class="hq-value" id="hero-eth">$0</span>
+              <span class="hq-label">ETH/USDT</span>
+            </div>
+            <div class="hq-stat">
+              <span class="hq-value" id="hero-fear">--</span>
+              <span class="hq-label">Fear & Greed</span>
+            </div>
           </div>
-          <div class="kz-progress-bg">
-            <div
-              class="kz-progress-fill"
-              id="kz-progress"
-              style="width: 0%"
-            ></div>
-          </div>
-          <div class="kz-sessions-mini">
-            <span class="kz-tag" id="tag-asia">🌏 Asia</span>
-            <span class="kz-tag" id="tag-london">🔥 London</span>
-            <span class="kz-tag" id="tag-ny">⚡ New York</span>
-            <span class="kz-tag" id="tag-close">🎯 Close</span>
+
+          <div class="hero-cta">
+            <button
+              class="btn-primary btn-large"
+              onclick="showSection('signals')"
+            >
+              <i class="fas fa-rocket"></i> Generate Signal
+            </button>
+            <button
+              class="btn-secondary btn-large"
+              onclick="showSection('killzones')"
+            >
+              <i class="fas fa-clock"></i> View Sessions
+            </button>
           </div>
         </div>
 
-        <div class="hero-cta">
-          <button
-            class="btn-primary btn-large"
-            onclick="showSection('signals')"
-          >
-            <i class="fas fa-rocket"></i> Generate Signal
-          </button>
-          <button
-            class="btn-secondary btn-large"
-            onclick="showSection('killzones')"
-          >
-            <i class="fas fa-clock"></i> View Sessions
-          </button>
+        <!-- Interactive World Map -->
+        <div class="hero-right">
+          <div class="world-map-container">
+            <div class="map-header">
+              <span class="map-title">🌍 Global Trading Sessions</span>
+              <span class="map-time" id="map-utc">UTC: --:--:--</span>
+            </div>
+
+            <!-- CSS World Map -->
+            <div class="world-map">
+              <!-- Asia Region -->
+              <div class="map-region asia" id="region-asia">
+                <div class="region-glow"></div>
+                <div class="region-content">
+                  <span class="region-icon">🌏</span>
+                  <div class="region-info">
+                    <span class="region-name">Asia</span>
+                    <span class="region-time" id="time-asia">--:--</span>
+                    <span class="region-status" id="status-asia">Closed</span>
+                  </div>
+                </div>
+                <div class="region-pulse" id="pulse-asia"></div>
+              </div>
+
+              <!-- Europe Region -->
+              <div class="map-region europe" id="region-europe">
+                <div class="region-glow"></div>
+                <div class="region-content">
+                  <span class="region-icon">🔥</span>
+                  <div class="region-info">
+                    <span class="region-name">London</span>
+                    <span class="region-time" id="time-europe">--:--</span>
+                    <span class="region-status" id="status-europe">Closed</span>
+                  </div>
+                </div>
+                <div class="region-pulse" id="pulse-europe"></div>
+              </div>
+
+              <!-- New York Region -->
+              <div class="map-region americas" id="region-americas">
+                <div class="region-glow"></div>
+                <div class="region-content">
+                  <span class="region-icon">⚡</span>
+                  <div class="region-info">
+                    <span class="region-name">New York</span>
+                    <span class="region-time" id="time-americas">--:--</span>
+                    <span class="region-status" id="status-americas"
+                      >Closed</span
+                    >
+                  </div>
+                </div>
+                <div class="region-pulse" id="pulse-americas"></div>
+              </div>
+
+              <!-- Connection Lines -->
+              <svg class="map-connections" viewBox="0 0 400 250">
+                <path
+                  class="connection-line"
+                  id="line-asia-europe"
+                  d="M 280 80 Q 200 50 120 100"
+                />
+                <path
+                  class="connection-line"
+                  id="line-europe-americas"
+                  d="M 120 100 Q 80 150 80 180"
+                />
+                <path
+                  class="connection-line"
+                  id="line-asia-americas"
+                  d="M 280 80 Q 200 150 80 180"
+                  stroke-dasharray="5,5"
+                  opacity="0.3"
+                />
+              </svg>
+
+              <!-- Map Decorations -->
+              <div class="map-dot dot-tokyo" title="Tokyo"></div>
+              <div class="map-dot dot-london" title="London"></div>
+              <div class="map-dot dot-ny" title="New York"></div>
+              <div class="map-dot dot-sydney" title="Sydney"></div>
+            </div>
+
+            <!-- Session Timeline -->
+            <div class="session-timeline">
+              <div class="timeline-track">
+                <div class="timeline-progress" id="timeline-progress"></div>
+              </div>
+              <div class="timeline-labels">
+                <span>Asia</span>
+                <span>London</span>
+                <span>NY</span>
+                <span>Close</span>
+              </div>
+            </div>
+
+            <!-- Active Session Info -->
+            <div class="active-session-banner" id="active-session-banner">
+              <div class="session-icon" id="session-icon">⏰</div>
+              <div class="session-details">
+                <span class="session-name" id="session-name"
+                  >No Active Session</span
+                >
+                <span class="session-countdown" id="session-countdown"
+                  >--:--:--</span
+                >
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Kill Zones Section -->
+    <!-- Kill Zones Detail Section -->
     <section id="killzones" class="killzones-section">
       <div class="container">
         <div class="section-header">
@@ -140,7 +246,7 @@
             <div class="kz-time">01:00 – 03:00 UTC</div>
             <div class="kz-local" id="local-asia">--:-- LKT</div>
             <p>Tokyo open · AUD, NZD, JPY pairs</p>
-            <div class="kz-status" id="status-asia">Inactive</div>
+            <div class="kz-status" id="status-asia-detail">Inactive</div>
           </div>
 
           <div class="kz-card" id="kz-card-london">
@@ -149,7 +255,7 @@
             <div class="kz-time">07:00 – 10:00 UTC</div>
             <div class="kz-local" id="local-london">--:-- LKT</div>
             <p>Highest volume · EUR, GBP, CHF pairs</p>
-            <div class="kz-status" id="status-london">Inactive</div>
+            <div class="kz-status" id="status-london-detail">Inactive</div>
           </div>
 
           <div class="kz-card" id="kz-card-ny">
@@ -158,7 +264,7 @@
             <div class="kz-time">12:00 – 15:00 UTC</div>
             <div class="kz-local" id="local-ny">--:-- LKT</div>
             <p>NY + London overlap · Maximum liquidity</p>
-            <div class="kz-status" id="status-ny">Inactive</div>
+            <div class="kz-status" id="status-ny-detail">Inactive</div>
           </div>
 
           <div class="kz-card" id="kz-card-close">
@@ -167,7 +273,7 @@
             <div class="kz-time">15:00 – 17:00 UTC</div>
             <div class="kz-local" id="local-close">--:-- LKT</div>
             <p>Position squaring · Watch for reversals</p>
-            <div class="kz-status" id="status-close">Inactive</div>
+            <div class="kz-status" id="status-close-detail">Inactive</div>
           </div>
         </div>
 
@@ -177,28 +283,28 @@
             <span class="clock-flag">🇺🇸</span>
             <div>
               <div class="clock-label">New York</div>
-              <div class="clock-time" id="time-ny">--:--:--</div>
+              <div class="clock-time" id="time-ny-detail">--:--:--</div>
             </div>
           </div>
           <div class="clock-card" id="clock-london">
             <span class="clock-flag">🇬🇧</span>
             <div>
               <div class="clock-label">London</div>
-              <div class="clock-time" id="time-london">--:--:--</div>
+              <div class="clock-time" id="time-london-detail">--:--:--</div>
             </div>
           </div>
           <div class="clock-card" id="clock-utc">
             <span class="clock-flag">🌍</span>
             <div>
               <div class="clock-label">UTC</div>
-              <div class="clock-time" id="time-utc">--:--:--</div>
+              <div class="clock-time" id="time-utc-detail">--:--:--</div>
             </div>
           </div>
           <div class="clock-card active" id="clock-local">
             <span class="clock-flag">📍</span>
             <div>
               <div class="clock-label">Your Time</div>
-              <div class="clock-time" id="time-local">--:--:--</div>
+              <div class="clock-time" id="time-local-detail">--:--:--</div>
             </div>
           </div>
         </div>
@@ -522,34 +628,50 @@
           </div>
         </div>
 
-        <div class="chart-container">
-          <h3 class="chart-title">Monthly Performance</h3>
-          <canvas id="performance-chart"></canvas>
-        </div>
+        <div class="chart-wrapper">
+          <div class="chart-container">
+            <h3 class="chart-title">Monthly Performance</h3>
+            <div class="chart-canvas-wrapper">
+              <canvas id="performance-chart"></canvas>
+            </div>
+          </div>
 
-        <div class="rr-distribution">
-          <h3 class="chart-title">R:R Distribution</h3>
-          <div class="rr-bars" id="rr-bars">
-            <div class="rr-bar-item">
-              <span class="rr-label">1:1 - 1:2</span>
-              <div class="rr-bar-bg">
-                <div class="rr-bar-fill" id="rr-bar-1" style="width: 0%"></div>
+          <div class="rr-distribution">
+            <h3 class="chart-title">R:R Distribution</h3>
+            <div class="rr-bars" id="rr-bars">
+              <div class="rr-bar-item">
+                <span class="rr-label">1:1 - 1:2</span>
+                <div class="rr-bar-bg">
+                  <div
+                    class="rr-bar-fill"
+                    id="rr-bar-1"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <span class="rr-count" id="rr-count-1">0</span>
               </div>
-              <span class="rr-count" id="rr-count-1">0</span>
-            </div>
-            <div class="rr-bar-item">
-              <span class="rr-label">1:2 - 1:3</span>
-              <div class="rr-bar-bg">
-                <div class="rr-bar-fill" id="rr-bar-2" style="width: 0%"></div>
+              <div class="rr-bar-item">
+                <span class="rr-label">1:2 - 1:3</span>
+                <div class="rr-bar-bg">
+                  <div
+                    class="rr-bar-fill"
+                    id="rr-bar-2"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <span class="rr-count" id="rr-count-2">0</span>
               </div>
-              <span class="rr-count" id="rr-count-2">0</span>
-            </div>
-            <div class="rr-bar-item">
-              <span class="rr-label">1:3+</span>
-              <div class="rr-bar-bg">
-                <div class="rr-bar-fill" id="rr-bar-3" style="width: 0%"></div>
+              <div class="rr-bar-item">
+                <span class="rr-label">1:3+</span>
+                <div class="rr-bar-bg">
+                  <div
+                    class="rr-bar-fill"
+                    id="rr-bar-3"
+                    style="width: 0%"
+                  ></div>
+                </div>
+                <span class="rr-count" id="rr-count-3">0</span>
               </div>
-              <span class="rr-count" id="rr-count-3">0</span>
             </div>
           </div>
         </div>
