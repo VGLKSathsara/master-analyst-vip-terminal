@@ -565,6 +565,13 @@
           </button>
           <button
             class="btn-secondary"
+            onclick="exportExcel()"
+            style="background: var(--accent); color: #000; font-weight: 700"
+          >
+            <i class="fas fa-file-excel"></i> Weekly Report
+          </button>
+          <button
+            class="btn-secondary"
             onclick="document.getElementById('import-file').click()"
           >
             <i class="fas fa-upload"></i> Import
@@ -677,6 +684,9 @@
         </div>
 
         <div class="danger-zone">
+          <button class="btn-export-excel" onclick="exportExcel()">
+            <i class="fas fa-file-excel"></i> Export Weekly Report
+          </button>
           <button class="btn-danger" onclick="clearAllData()">
             <i class="fas fa-trash"></i> Clear All Data
           </button>

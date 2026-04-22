@@ -2056,11 +2056,6 @@ body {
 }
 
 /* Danger Zone */
-.danger-zone {
-  padding-top: 32px;
-  border-top: 1px solid var(--border-color);
-  text-align: center;
-}
 
 .btn-danger {
   background: transparent;
@@ -2520,4 +2515,97 @@ body {
     right: 10px;
     top: 15px;
   }
+}
+
+/* ─── EXPORT EXCEL BUTTON ─── */
+.btn-export-excel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #00d4aa, #00b894);
+  color: #0a0e1a;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 16px rgba(0, 212, 170, 0.3);
+}
+.btn-export-excel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 212, 170, 0.5);
+}
+
+/* ─── DANGER ZONE IMPROVED ─── */
+.danger-zone {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-color);
+  margin-top: 32px;
+}
+
+/* ─── MESSAGE OUTPUT IMPROVEMENTS ─── */
+#signal-output {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+  letter-spacing: 0.2px;
+}
+#msg-modal-content {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.7;
+  letter-spacing: 0.2px;
+}
+
+/* ─── TRADE CARD ENHANCEMENTS ─── */
+.trade-card {
+  transition: var(--transition);
+}
+.trade-card:hover {
+  border-color: var(--border-light);
+  transform: translateY(-1px);
+}
+.trade-card.status-open {
+  border-left: 3px solid var(--accent-orange);
+}
+.trade-card.status-win {
+  border-left: 3px solid var(--accent);
+}
+.trade-card.status-loss {
+  border-left: 3px solid var(--accent-red);
+}
+
+/* ─── SIGNAL OUTPUT CARD HEADER ─── */
+.output-card .card-header {
+  background: linear-gradient(90deg, rgba(0, 212, 170, 0.08), transparent);
+}
+
+/* ─── MSG BUTTONS ENHANCED ─── */
+.btn-msg.be {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.btn-msg.be:hover {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+/* ─── HISTORY CONTROLS WEEKLY REPORT BTN ─── */
+.history-controls .btn-secondary[onclick*='exportExcel'] {
+  background: var(--accent);
+  color: #0a0e1a;
+  font-weight: 700;
+  border: none;
+}
+.history-controls .btn-secondary[onclick*='exportExcel']:hover {
+  background: #00b894;
+  transform: translateY(-1px);
 }

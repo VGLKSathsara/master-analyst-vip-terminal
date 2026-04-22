@@ -550,88 +550,166 @@ function saveTrades() {
   localStorage.setItem('csp_trades_v3', JSON.stringify(state.trades))
 }
 
-// ─── MESSAGE BUILDERS ───
+// ─── RISK LEVEL HELPER ───
+function getRiskLevel(t) {
+  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100)
+  const riskNum = parseFloat(t.riskPct) || 1
+  if (lossPct > 3 || riskNum >= 3) return 'High  Risky'
+  if (lossPct > 1.5 || riskNum >= 2) return 'Medium Risk'
+  return 'Low Risk'
+}
+
+function fmtPrice(price) {
+  // Smart decimal formatting
+  if (price >= 1000) return price.toFixed(1)
+  if (price >= 1) return price.toFixed(4)
+  return price.toFixed(6)
+}
+
+function getRR(t) {
+  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100)
+  const tp1Pct = Math.abs(((t.tps[0] - t.entry) / t.entry) * 100)
+  return lossPct > 0 ? (tp1Pct / lossPct).toFixed(1) : '0'
+}
+
+// ─── MESSAGE BUILDERS (Clean Telegram Format) ───
+
 function buildOpenMessage(t) {
-  const isShort = t.side === 'SHORT',
-    dir = isShort ? 'SHORT 🔴' : 'LONG 🟢',
-    arrow = isShort ? '⬇️' : '⬆️'
-  const tag = '#' + t.coin.replace('/', '').replace('.P', '')
-  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100).toFixed(2)
-  const tp1Pct = Math.abs(((t.tps[0] - t.entry) / t.entry) * 100).toFixed(2)
-  const rr = (tp1Pct / lossPct).toFixed(2)
-  const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
-  const tpLines = t.tps
-    .map(
-      (tp, i) =>
-        `  ${medals[i]} TP${i + 1}  ›  ${tp}  (+${Math.abs(((tp - t.entry) / t.entry) * 100).toFixed(2)}%)`,
-    )
-    .join('\n')
-  const beLine = t.be !== 'None' ? `\n  🔵 BE     ›  ${t.be}` : ''
-  const noteLine = t.note ? `\n💬 ${t.note}` : ''
-  const manLine = t.manualMode
-    ? '\n📝 MANUAL MODE: Limit order - monitor manually'
-    : ''
-  return `╔══════════════════════════╗\n  🀄  ${tag}\n  ${dir}  ${arrow}\n╚══════════════════════════╝\n\n📋 ${t.orderType.toUpperCase()}\n🔒 Leverage: ${t.leverage}${manLine}\n\n┌─────────────────────────┐\n  📍 Entry  ›  ${t.entry}\n${tpLines}\n  🛑 SL     ›  ${t.sl}  (-${lossPct}%)${beLine}\n└─────────────────────────┘\n\n📊 Risk Analysis:\n  💰 Risk: ${t.riskPct}% of balance\n  📈 Reward: +${tp1Pct}% (TP1)\n  ⚖️  R:R   ›  1:${rr}${noteLine}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n🪷 Patience · 🌸 Discipline\n🔐 CryptoSignal PRO`
+  const isShort = t.side === 'SHORT'
+  const dirEmoji = isShort ? '🟥' : '🟩'
+  const dirText = isShort ? 'SELL' : 'BUY'
+  const riskLevel = getRiskLevel(t)
+  const riskLine = riskLevel !== 'Low Risk' ? ` | ${riskLevel}` : ''
+
+  // Header line
+  let msg = `${dirEmoji} ${t.coin} | ${dirText}${riskLine}\n`
+
+  // SL line
+  msg += `SL ${fmtPrice(t.sl)}\n`
+
+  // TP lines
+  t.tps.forEach((tp, i) => {
+    msg += `TP${t.tps.length > 1 ? i + 1 : ''} ${fmtPrice(tp)}\n`
+  })
+
+  // BE line if set
+  if (t.be && t.be !== 'None') {
+    msg += `BE ${fmtPrice(parseFloat(t.be))}\n`
+  }
+
+  // RR line
+  msg += `\nRR 1:${getRR(t)}`
+
+  // Note if any
+  if (t.note) msg += `\n\n💬 ${t.note}`
+
+  // Manual mode note
+  if (t.manualMode) msg += `\n📝 Limit Order — monitor manually`
+
+  return msg
 }
 
 function buildTPHitMessage(t, idx, hitPrice) {
-  const isShort = t.side === 'SHORT',
-    tag = '#' + t.coin.replace('/', '').replace('.P', '')
-  const tp = t.tps[idx],
-    profPct = Math.abs(((tp - t.entry) / t.entry) * 100).toFixed(2)
-  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100),
-    rr = (profPct / lossPct).toFixed(2)
-  const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
+  const isShort = t.side === 'SHORT'
+  const dirEmoji = isShort ? '🟥' : '🟩'
+  const tp = t.tps[idx]
+  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100)
+  const profPct = Math.abs(((tp - t.entry) / t.entry) * 100)
+  const rr = lossPct > 0 ? (profPct / lossPct).toFixed(1) : '0'
   const isLast = idx === t.tps.length - 1
-  const extra = isLast
-    ? '\n🎊 All targets reached! Excellent trade!'
-    : '\n⏳ Remaining TPs in play\n💡 Consider moving SL to BE'
-  const rrEmoji = rr >= 5 ? '💎' : rr >= 3 ? '🚀' : rr >= 2 ? '🔥' : '✅'
-  return `${rrEmoji} TP${idx + 1} HIT!\n\n╔══════════════════════════╗\n  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n╚══════════════════════════╝\n\n${medals[idx]} TP${idx + 1}  ›  ${tp}\n📍 Entry was  ›  ${t.entry}\n\n┌─────────────────────────┐\n  📈 Profit: +${profPct}%\n  ⚖️  R:R   ›  1:${rr}\n  💰 Risk: ${t.riskPct}% of balance\n└─────────────────────────┘${extra}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔐 CryptoSignal PRO`
+
+  let msg = `🎯 TP${idx + 1} HIT!\n\n`
+  msg += `${dirEmoji} ${t.coin} | ${isShort ? 'SELL' : 'BUY'}\n`
+  msg += `Entry ${fmtPrice(t.entry)}\n`
+  msg += `TP${idx + 1} ${fmtPrice(tp)}\n`
+  msg += `SL ${fmtPrice(t.sl)}\n`
+  msg += `\nRR 1:${rr}`
+  if (isLast) {
+    msg += `\n\n🎊 All targets reached!`
+  } else {
+    msg += `\n\n⏳ Move SL to BE — remaining TPs in play`
+  }
+  return msg
+}
+
+function buildBEMessage(t) {
+  const isShort = t.side === 'SHORT'
+  const dirEmoji = isShort ? '🟥' : '🟩'
+  const be = t.be && t.be !== 'None' ? parseFloat(t.be) : t.entry
+
+  let msg = `🔵 MOVE TO BREAK EVEN\n\n`
+  msg += `${dirEmoji} ${t.coin} | ${isShort ? 'SELL' : 'BUY'}\n`
+  msg += `BE ${fmtPrice(be)}\n`
+  msg += `SL → ${fmtPrice(be)} (Break Even)\n`
+  msg += `\n✅ Risk-free trade — let it run!`
+  return msg
 }
 
 function buildRRMessage(t, mult) {
-  const isShort = t.side === 'SHORT',
-    tag = '#' + t.coin.replace('/', '').replace('.P', '')
-  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100),
-    profPct = (lossPct * mult).toFixed(2)
+  const isShort = t.side === 'SHORT'
+  const dirEmoji = isShort ? '🟥' : '🟩'
+  const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100)
   const rrPrice = isShort
-    ? (t.entry - ((t.entry * lossPct) / 100) * mult).toFixed(6)
-    : (t.entry + ((t.entry * lossPct) / 100) * mult).toFixed(6)
-  const [emoji, note] =
+    ? t.entry - ((t.entry * lossPct) / 100) * mult
+    : t.entry + ((t.entry * lossPct) / 100) * mult
+  const profPct = (lossPct * mult).toFixed(2)
+
+  const advice =
     mult >= 4
-      ? ['💎', 'Exceptional move! Secure profits!']
+      ? '💎 Exceptional! Secure your profits!'
       : mult >= 3
-        ? ['🚀', 'Consider locking profits!']
+        ? '🚀 Consider locking profits!'
         : mult >= 2
-          ? ['🔥', 'Trade running beautifully!']
-          : ['✅', 'Move SL to Break Even!']
-  return `${emoji} 1:${mult} RR REACHED!\n\n╔══════════════════════════╗\n  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n╚══════════════════════════╝\n\n📍 Entry: ${t.entry}\n⚖️  1:${mult} Level: ~${rrPrice}\n\n┌─────────────────────────┐\n  📈 Profit: +${profPct}%\n  ⚖️  R:R   ›  1:${mult}\n  💰 Risk: ${t.riskPct}% of balance\n└─────────────────────────┘\n\n💡 ${note}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔐 CryptoSignal PRO`
+          ? '🔥 Trade running well!'
+          : '✅ Move SL to Break Even!'
+
+  let msg = `⚖️ 1:${mult} RR REACHED\n\n`
+  msg += `${dirEmoji} ${t.coin} | ${isShort ? 'SELL' : 'BUY'}\n`
+  msg += `Entry ${fmtPrice(t.entry)}\n`
+  msg += `1:${mult} Level ~${fmtPrice(rrPrice)}\n`
+  msg += `SL ${fmtPrice(t.sl)}\n`
+  msg += `\n${advice}`
+  return msg
 }
 
 function buildSLMessage(t) {
-  const isShort = t.side === 'SHORT',
-    tag = '#' + t.coin.replace('/', '').replace('.P', '')
+  const isShort = t.side === 'SHORT'
+  const dirEmoji = isShort ? '🟥' : '🟩'
   const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100).toFixed(2)
-  return `🛑 STOP LOSS HIT\n\n╔══════════════════════════╗\n  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n╚══════════════════════════╝\n\n📍 Entry: ${t.entry}\n🛑 SL Hit: ${t.exitPrice || t.sl}\n\n┌─────────────────────────┐\n  📉 Loss: -${lossPct}%\n  💰 Risk: ${t.riskPct}% of balance\n└─────────────────────────┘\n\n💪 Losses are part of trading.\n   Stay disciplined. Next trade!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔐 CryptoSignal PRO`
+
+  let msg = `🛑 STOP LOSS HIT\n\n`
+  msg += `${dirEmoji} ${t.coin} | ${isShort ? 'SELL' : 'BUY'}\n`
+  msg += `Entry ${fmtPrice(t.entry)}\n`
+  msg += `SL ${fmtPrice(t.exitPrice || t.sl)}\n`
+  msg += `\nLoss -${lossPct}%\n`
+  msg += `\n💪 Stay disciplined. Next trade!`
+  return msg
 }
 
 function buildResultMessage(t) {
-  const isShort = t.side === 'SHORT',
-    tag = '#' + t.coin.replace('/', '').replace('.P', '')
-  const isWin = t.status === 'WIN',
-    pnl = t.profit?.toFixed(2) || '0.00'
+  const isShort = t.side === 'SHORT'
+  const dirEmoji = isShort ? '🟥' : '🟩'
+  const isWin = t.status === 'WIN'
+  const pnl = t.profit?.toFixed(2) || '0.00'
   const lossPct = Math.abs(((t.sl - t.entry) / t.entry) * 100)
-  const rr = t.profit ? (Math.abs(t.profit) / lossPct).toFixed(2) : '0'
-  const medals = ['🥇', '🥈', '🥉', '🏅', '🏅', '🏅']
-  const tpSummary = t.tps
-    .map((tp, i) => {
-      const hit = (t.hitTPs || []).includes(i),
-        pct = Math.abs(((tp - t.entry) / t.entry) * 100).toFixed(2)
-      return `  ${hit ? medals[i] : '⬜'} TP${i + 1} › ${tp} (+${pct}%) ${hit ? '✓' : '—'}`
-    })
-    .join('\n')
-  return `${isWin ? '🏆 TRADE CLOSED - WIN!' : '🛑 TRADE CLOSED - LOSS'}\n\n╔══════════════════════════╗\n  🀄  ${tag}  ${isShort ? 'SHORT 🔴' : 'LONG 🟢'}\n╚══════════════════════════╝\n\n📍 Entry: ${t.entry}\n🏁 Exit: ${t.exitPrice}\n\nTP Results:\n${tpSummary}\n  🛑 SL › ${t.sl}\n\n┌─────────────────────────┐\n  ${isWin ? '📈 Profit' : '📉 Loss'}: ${pnl}%\n  ⚖️  R:R   ›  1:${rr}\n  💰 Risk: ${t.riskPct}% of balance\n  🤖 ${t.autoTriggered ? '⚡ Auto' : '🖐 Manual'}\n└─────────────────────────┘\n\n${isWin ? '🎉 Excellent execution!' : '💪 Losses happen. Protect capital.'}\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔐 CryptoSignal PRO`
+  const rr = t.profit ? (Math.abs(t.profit) / lossPct).toFixed(1) : '0'
+
+  let msg = isWin ? `🏆 TRADE CLOSED — WIN\n\n` : `🛑 TRADE CLOSED — LOSS\n\n`
+  msg += `${dirEmoji} ${t.coin} | ${isShort ? 'SELL' : 'BUY'}\n`
+  msg += `Entry ${fmtPrice(t.entry)}\n`
+  msg += `Exit ${fmtPrice(t.exitPrice)}\n`
+
+  // TP summary
+  const hitCount = (t.hitTPs || []).length
+  if (t.tps.length > 0) {
+    msg += `TPs ${hitCount}/${t.tps.length} Hit\n`
+  }
+
+  msg += `SL ${fmtPrice(t.sl)}\n`
+  msg += `\n${isWin ? 'Profit' : 'Loss'} ${isWin ? '+' : ''}${pnl}%\n`
+  msg += `RR 1:${rr}`
+  msg += `\n\n${isWin ? '🎉 Excellent execution!' : '💪 Losses happen. Protect capital.'}`
+  return msg
 }
 
 // ─── COPY & SHARE ───
@@ -847,6 +925,9 @@ function renderHistory() {
       const msgButtons = []
       if (trade.status === 'OPEN') {
         msgButtons.push({ type: 'signal', label: '📊 Signal', cls: 'signal' })
+        if (trade.be && trade.be !== 'None') {
+          msgButtons.push({ type: 'be', label: '🔵 BE', cls: 'rr' })
+        }
         milestones.forEach((m) => {
           const hit = (trade.hitRRs || []).includes(m)
           msgButtons.push({
@@ -1001,6 +1082,7 @@ function showMessage(id, type, data) {
         buildTPHitMessage(trade, data, trade.tps[data]),
     ],
     rr: [`⚖️ 1:${data} RR Update`, () => buildRRMessage(trade, data)],
+    be: ['🔵 Break Even Message', () => buildBEMessage(trade)],
     sl: ['🛑 Stop Loss Message', () => buildSLMessage(trade)],
     result: [
       '🏁 Final Result',
@@ -1016,6 +1098,367 @@ function showMessage(id, type, data) {
 
 function closeModal() {
   $('msg-modal')?.classList.remove('show')
+}
+
+// ─── WEEKLY REPORT — Opens print-ready PDF page in new window ───
+function exportExcel() {
+  if (!state.trades.length) {
+    showToast('No trades to export', 'error')
+    return
+  }
+
+  const trades = [...state.trades].sort(
+    (a, b) => new Date(a.date) - new Date(b.date),
+  )
+  const now = new Date()
+  const monthName = now.toLocaleString('default', { month: 'long' })
+  const year = now.getFullYear()
+
+  // Stats for summary section
+  const closed = trades.filter((t) => t.status !== 'OPEN')
+  const wins = trades.filter((t) => t.status === 'WIN').length
+  const losses = trades.filter((t) => t.status === 'LOSS').length
+  const open = trades.filter((t) => t.status === 'OPEN').length
+  const winRate = closed.length ? ((wins / closed.length) * 100).toFixed(0) : 0
+  const totalPnl = closed.reduce((s, t) => s + (t.profit || 0), 0)
+
+  const rows = trades
+    .map((t, idx) => {
+      const isShort = t.side === 'SHORT'
+      const sideColor = isShort ? '#dc2626' : '#16a34a'
+      const sideBg = isShort ? '#fef2f2' : '#f0fdf4'
+      let tpslText, tpslColor, tpslBg
+      if (t.status === 'WIN') {
+        tpslText = 'Tp'
+        tpslColor = '#15803d'
+        tpslBg = '#16a34a'
+      } else if (t.status === 'LOSS') {
+        tpslText = 'Sl'
+        tpslColor = '#fff'
+        tpslBg = '#dc2626'
+      } else if (t.be && t.be !== 'None') {
+        tpslText = 'Be'
+        tpslColor = '#fff'
+        tpslBg = '#d97706'
+      } else {
+        tpslText = 'Open'
+        tpslColor = '#fff'
+        tpslBg = '#6b7280'
+      }
+      const rr = getRR(t)
+      const dateStr = new Date(t.date).toLocaleDateString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+      })
+      const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc'
+      return `<tr style="background:${rowBg}">
+      <td class="tc">${idx + 1}</td>
+      <td class="tc">${dateStr}</td>
+      <td class="tc fw6">${t.coin}</td>
+      <td class="tc" style="background:${sideColor};color:#fff;font-weight:700">${isShort ? 'Sell' : 'Buy'}</td>
+      <td class="tc" style="background:${tpslBg};color:#fff;font-weight:700">${tpslText}</td>
+      <td class="tc fw6">1:${rr}</td>
+    </tr>`
+    })
+    .join('')
+
+  const pnlSign = totalPnl >= 0 ? '+' : ''
+  const pnlColor = totalPnl >= 0 ? '#15803d' : '#dc2626'
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MASTER ANALYST CRYPTO VIP — ${monthName} ${year}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #e8edf5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 60px;
+  }
+
+  /* ── TOP ACTION BAR (hidden when printing) ── */
+  .action-bar {
+    width: 100%;
+    max-width: 780px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .action-bar h2 {
+    font-size: 15px;
+    color: #475569;
+    font-weight: 500;
+  }
+  .action-bar h2 span { color: #1e3a8a; font-weight: 700; }
+  .btn-pdf {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(37,99,235,0.4);
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+  }
+  .btn-pdf:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(37,99,235,0.5);
+  }
+  .btn-pdf svg { width:18px; height:18px; }
+
+  /* ── SHEET ── */
+  .sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 780px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+    border: 1px solid #cbd5e1;
+  }
+
+  /* top meta row */
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  /* title */
+  .title-row {
+    background: linear-gradient(90deg, #dbeafe 0%, #eff6ff 50%, #dbeafe 100%);
+    text-align: center;
+    padding: 18px 20px;
+    border-bottom: 2px solid #93c5fd;
+  }
+  .title-row h1 {
+    font-size: 22px;
+    font-weight: 900;
+    color: #1e3a8a;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .title-row p {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* table */
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background: #f1f5f9; }
+  thead th {
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #374151;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  tbody td {
+    padding: 9px 12px;
+    font-size: 13px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+  }
+  .tc { text-align:center; }
+  .fw6 { font-weight:600; }
+  tbody tr:hover { filter: brightness(0.97); }
+
+  /* summary strip */
+  .summary-strip {
+    display: flex;
+    border-top: 2px solid #e2e8f0;
+    background: #f8fafc;
+  }
+  .sum-item {
+    flex: 1;
+    text-align: center;
+    padding: 14px 8px;
+    border-right: 1px solid #e2e8f0;
+  }
+  .sum-item:last-child { border-right: none; }
+  .sum-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .sum-value {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e293b;
+  }
+  .sum-value.green { color: #16a34a; }
+  .sum-value.red   { color: #dc2626; }
+  .sum-value.blue  { color: #2563eb; }
+
+  /* legend */
+  .legend {
+    display: flex;
+    gap: 18px;
+    padding: 12px 20px;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+    flex-wrap: wrap;
+  }
+  .leg { display:flex; align-items:center; gap:6px; font-size:11px; color:#64748b; }
+  .leg-dot {
+    width:12px; height:12px; border-radius:3px; display:inline-block;
+  }
+
+  /* footer */
+  .footer {
+    text-align: center;
+    padding: 10px 20px;
+    font-size: 11px;
+    color: #94a3b8;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── PRINT STYLES ── */
+  @media print {
+    body { background:#fff; padding:0; }
+    .action-bar { display:none !important; }
+    .sheet {
+      box-shadow: none;
+      border: none;
+      border-radius: 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    @page { margin: 10mm 12mm; size: A4 portrait; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Action Bar -->
+<div class="action-bar">
+  <h2>Preview — <span>${monthName} ${year} Weekly Report</span></h2>
+  <button class="btn-pdf" onclick="window.print()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 9V2h12v7"/><rect x="6" y="17" width="12" height="5"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+    </svg>
+    Download PDF
+  </button>
+</div>
+
+<!-- Sheet -->
+<div class="sheet">
+
+  <!-- Meta row -->
+  <div class="meta-row">
+    <span>${monthName} ${year}</span>
+    <span>Weekly Report</span>
+    <span>Generated ${now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+  </div>
+
+  <!-- Title -->
+  <div class="title-row">
+    <h1>Master Analyst Crypto VIP</h1>
+    <p>Professional Trading Signal Record</p>
+  </div>
+
+  <!-- Table -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:48px">Tno.</th>
+        <th>Date</th>
+        <th>Pair</th>
+        <th>Buy / Sell</th>
+        <th>Tp / Sl</th>
+        <th>RR</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+
+  <!-- Summary strip -->
+  <div class="summary-strip">
+    <div class="sum-item">
+      <div class="sum-label">Total Trades</div>
+      <div class="sum-value blue">${trades.length}</div>
+    </div>
+    <div class="sum-item">
+      <div class="sum-label">Wins</div>
+      <div class="sum-value green">${wins}</div>
+    </div>
+    <div class="sum-item">
+      <div class="sum-label">Losses</div>
+      <div class="sum-value red">${losses}</div>
+    </div>
+    <div class="sum-item">
+      <div class="sum-label">Open</div>
+      <div class="sum-value">${open}</div>
+    </div>
+    <div class="sum-item">
+      <div class="sum-label">Win Rate</div>
+      <div class="sum-value ${winRate >= 50 ? 'green' : 'red'}">${winRate}%</div>
+    </div>
+    <div class="sum-item">
+      <div class="sum-label">Total P&amp;L</div>
+      <div class="sum-value ${totalPnl >= 0 ? 'green' : 'red'}">${pnlSign}${totalPnl.toFixed(1)}%</div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="leg"><span class="leg-dot" style="background:#16a34a"></span> Tp — Take Profit Hit</div>
+    <div class="leg"><span class="leg-dot" style="background:#dc2626"></span> Sl — Stop Loss Hit</div>
+    <div class="leg"><span class="leg-dot" style="background:#d97706"></span> Be — Break Even</div>
+    <div class="leg"><span class="leg-dot" style="background:#6b7280"></span> Open — Trade Active</div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">CryptoSignal PRO &nbsp;·&nbsp; Master Analyst Crypto VIP &nbsp;·&nbsp; ${monthName} ${year}</div>
+
+</div>
+
+</body>
+</html>`
+
+  const win = window.open('', '_blank')
+  if (!win) {
+    showToast('Pop-up blocked! Please allow pop-ups for this site.', 'error')
+    return
+  }
+  win.document.write(html)
+  win.document.close()
+  showToast('Report opened — click Download PDF!', 'success')
 }
 
 // FIX: copyFromModal — previously missing, now works
