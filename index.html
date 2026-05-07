@@ -2,8 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta
+      name="description"
+      content="Professional crypto trading signal terminal with Kill Zone tracking, real-time analytics, and automated TP/SL monitoring."
+    />
+    <meta name="theme-color" content="#0b5fff" />
     <title>CryptoSignal PRO | Professional Trading Terminal</title>
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="style.css" as="style" />
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      as="style"
+    />
+
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="style.css" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
@@ -12,6 +30,9 @@
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVJkESymD75+z/vTQqrJ6pjL65N06dLhdaevVaghP0LvQinna2/8XfAkP+4qsxJPmSimpljuH7A=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
     />
   </head>
   <body>
@@ -331,12 +352,14 @@
                 </h3>
                 <div class="coin-grid" id="coin-grid"></div>
                 <div class="input-group">
-                  <label>Or enter custom pair</label>
+                  <label for="coin-input">Or enter custom pair</label>
                   <input
                     type="text"
                     id="coin-input"
                     placeholder="e.g. BTC/USDT.P"
                     list="coin-list"
+                    aria-label="Trading pair input"
+                    autocomplete="off"
                   />
                   <datalist id="coin-list"></datalist>
                 </div>
@@ -348,15 +371,29 @@
                 </h3>
                 <div class="form-row">
                   <div class="input-group">
-                    <label>Direction</label>
-                    <select id="side-select">
+                    <label for="side-select"
+                      >Direction <span class="required">*</span></label
+                    >
+                    <select
+                      id="side-select"
+                      required
+                      aria-required="true"
+                      aria-label="Trade direction (long or short)"
+                    >
                       <option value="long">📈 Long / Buy</option>
                       <option value="short">📉 Short / Sell</option>
                     </select>
                   </div>
                   <div class="input-group">
-                    <label>Order Type</label>
-                    <select id="order-type">
+                    <label for="order-type"
+                      >Order Type <span class="required">*</span></label
+                    >
+                    <select
+                      id="order-type"
+                      required
+                      aria-required="true"
+                      aria-label="Order type (limit or market)"
+                    >
                       <option value="limit">⏳ Limit Order</option>
                       <option value="market">⚡ Market Order</option>
                     </select>
@@ -364,16 +401,17 @@
                 </div>
                 <div class="form-row">
                   <div class="input-group">
-                    <label>Leverage</label>
+                    <label for="leverage\">Leverage</label>
                     <input
                       type="text"
                       id="leverage"
                       placeholder="10x"
                       value="10x"
+                      aria-label="Trading leverage multiplier"
                     />
                   </div>
                   <div class="input-group">
-                    <label>Risk %</label>
+                    <label for="risk-pct\">Risk %</label>
                     <input
                       type="number"
                       id="risk-pct"
@@ -381,6 +419,7 @@
                       min="0.1"
                       max="100"
                       step="0.1"
+                      aria-label="Risk percentage per trade"
                     />
                   </div>
                 </div>
@@ -391,12 +430,17 @@
                   <i class="fas fa-crosshairs"></i> Price Levels
                 </h3>
                 <div class="input-group">
-                  <label>Entry Price</label>
+                  <label for="entry-price"
+                    >Entry Price <span class="required">*</span></label
+                  >
                   <input
                     type="number"
                     id="entry-price"
                     placeholder="0.00000"
                     step="any"
+                    required
+                    aria-required="true"
+                    aria-label="Entry price"
                   />
                 </div>
 
@@ -424,22 +468,30 @@
                 </div>
 
                 <div class="input-group">
-                  <label>Stop Loss <span class="required">*</span></label>
+                  <label for="stop-loss"
+                    >Stop Loss <span class="required">*</span></label
+                  >
                   <input
                     type="number"
                     id="stop-loss"
                     placeholder="0.00000"
                     step="any"
+                    required
+                    aria-required="true"
+                    aria-label="Stop loss price"
                   />
                 </div>
 
                 <div class="input-group">
-                  <label>Break Even (Optional)</label>
+                  <label for="break-even"
+                    >Break Even <span class="optional">(Optional)</span></label
+                  >
                   <input
                     type="number"
                     id="break-even"
                     placeholder="0.00000"
                     step="any"
+                    aria-label="Break even price"
                   />
                 </div>
               </div>
@@ -456,17 +508,25 @@
                   </label>
                 </div>
                 <div class="input-group">
-                  <label>Signal Note</label>
+                  <label for="signal-note"
+                    >Signal Note <span class="optional">(Optional)</span></label
+                  >
                   <input
                     type="text"
                     id="signal-note"
                     placeholder="Add context or analysis notes..."
+                    maxlength="255"
+                    aria-label="Signal analysis notes"
                   />
                 </div>
               </div>
 
-              <button class="btn-generate" onclick="generateSignal()">
-                <i class="fas fa-bolt"></i> GENERATE SIGNAL
+              <button
+                class="btn-generate"
+                onclick="generateSignal()"
+                aria-label="Generate trading signal"
+              >
+                <i class="fas fa-bolt" aria-hidden="true"></i> GENERATE SIGNAL
               </button>
             </div>
           </div>
@@ -502,14 +562,20 @@
               <div class="output-header">
                 <span class="output-label">📤 Signal Ready</span>
                 <div class="output-actions">
-                  <button class="btn-copy" onclick="copySignal()">
-                    <i class="fas fa-copy"></i> Copy
+                  <button
+                    class="btn-copy"
+                    onclick="copySignal()"
+                    aria-label="Copy signal to clipboard"
+                  >
+                    <i class="fas fa-copy" aria-hidden="true"></i> Copy
                   </button>
                   <button
                     class="btn-copy btn-telegram"
                     onclick="shareTelegram()"
+                    aria-label="Share signal to Telegram"
+                    title="Share on Telegram"
                   >
-                    <i class="fab fa-telegram"></i>
+                    <i class="fab fa-telegram" aria-hidden="true"></i>
                   </button>
                 </div>
               </div>
@@ -552,29 +618,40 @@
               id="history-search"
               placeholder="Search by coin or note..."
               oninput="renderHistory()"
+              aria-label="Search trade history"
             />
           </div>
-          <select id="history-filter" onchange="renderHistory()">
+          <select
+            id="history-filter"
+            onchange="renderHistory()"
+            aria-label="Filter trades by status"
+          >
             <option value="all">All Trades</option>
             <option value="open">🟡 Open</option>
             <option value="win">🟢 Wins</option>
             <option value="loss">🔴 Losses</option>
           </select>
-          <button class="btn-secondary" onclick="exportData()">
-            <i class="fas fa-download"></i> Export
+          <button
+            class="btn-secondary"
+            onclick="exportData()"
+            aria-label="Export trade data"
+          >
+            <i class="fas fa-download" aria-hidden="true"></i> Export
           </button>
           <button
             class="btn-secondary"
             onclick="exportExcel()"
             style="background: var(--accent); color: #000; font-weight: 700"
+            aria-label="Generate weekly trading report"
           >
-            <i class="fas fa-file-excel"></i> Weekly Report
+            <i class="fas fa-file-excel" aria-hidden="true"></i> Weekly Report
           </button>
           <button
             class="btn-secondary"
             onclick="document.getElementById('import-file').click()"
+            aria-label="Import trade data from file"
           >
-            <i class="fas fa-upload"></i> Import
+            <i class="fas fa-upload" aria-hidden="true"></i> Import
           </button>
           <input
             type="file"
@@ -684,11 +761,20 @@
         </div>
 
         <div class="danger-zone">
-          <button class="btn-export-excel" onclick="exportExcel()">
-            <i class="fas fa-file-excel"></i> Export Weekly Report
+          <button
+            class="btn-export-excel"
+            onclick="exportExcel()"
+            aria-label="Export weekly report"
+          >
+            <i class="fas fa-file-excel" aria-hidden="true"></i> Export Weekly
+            Report
           </button>
-          <button class="btn-danger" onclick="clearAllData()">
-            <i class="fas fa-trash"></i> Clear All Data
+          <button
+            class="btn-danger"
+            onclick="clearAllData()"
+            aria-label="Delete all trade data permanently"
+          >
+            <i class="fas fa-trash" aria-hidden="true"></i> Clear All Data
           </button>
         </div>
       </div>
@@ -708,11 +794,16 @@
             <div class="calc-form">
               <div class="calc-row">
                 <div class="calc-input">
-                  <label>Account Balance ($)</label>
-                  <input type="number" id="calc-balance" value="10000" />
+                  <label for="calc-balance">Account Balance ($)</label>
+                  <input
+                    type="number"
+                    id="calc-balance"
+                    value="10000"
+                    aria-label="Account balance in USD"
+                  />
                 </div>
                 <div class="calc-input">
-                  <label>Risk %</label>
+                  <label for="calc-risk">Risk %</label>
                   <input
                     type="number"
                     id="calc-risk"
@@ -720,30 +811,37 @@
                     min="0.1"
                     max="5"
                     step="0.1"
+                    aria-label="Risk percentage"
                   />
                 </div>
               </div>
               <div class="calc-row">
                 <div class="calc-input">
-                  <label>Entry Price</label>
+                  <label for="calc-entry">Entry Price</label>
                   <input
                     type="number"
                     id="calc-entry"
                     placeholder="0.00"
                     step="any"
+                    aria-label="Entry price"
                   />
                 </div>
                 <div class="calc-input">
-                  <label>Stop Loss</label>
+                  <label for="calc-sl">Stop Loss</label>
                   <input
                     type="number"
                     id="calc-sl"
                     placeholder="0.00"
                     step="any"
+                    aria-label="Stop loss price"
                   />
                 </div>
               </div>
-              <button class="btn-calc" onclick="calculatePosition()">
+              <button
+                class="btn-calc"
+                onclick="calculatePosition()"
+                aria-label="Calculate position size"
+              >
                 Calculate
               </button>
 
@@ -803,21 +901,39 @@
     </section>
 
     <!-- Message Preview Modal -->
-    <div id="msg-modal" class="modal">
+    <div
+      id="msg-modal"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="msg-modal-title"
+    >
       <div class="modal-content">
         <div class="modal-header">
           <h3 id="msg-modal-title">Message Preview</h3>
-          <button class="btn-close" onclick="closeModal()">
-            <i class="fas fa-times"></i>
+          <button
+            class="btn-close"
+            onclick="closeModal()"
+            aria-label="Close message preview"
+          >
+            <i class="fas fa-times" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-body">
-          <textarea id="msg-modal-content" readonly></textarea>
+          <textarea
+            id="msg-modal-content"
+            readonly
+            aria-label="Message content preview"
+          ></textarea>
         </div>
         <div class="modal-footer">
           <span class="modal-hint">Review before sending to Telegram</span>
-          <button class="btn-primary" onclick="copyFromModal()">
-            <i class="fas fa-copy"></i> Copy & Close
+          <button
+            class="btn-primary"
+            onclick="copyFromModal()"
+            aria-label="Copy message and close"
+          >
+            <i class="fas fa-copy" aria-hidden="true"></i> Copy & Close
           </button>
         </div>
       </div>
@@ -826,7 +942,7 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="app.js" defer></script>
   </body>
 </html>
